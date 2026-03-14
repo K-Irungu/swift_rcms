@@ -24,7 +24,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"form">)
     try {
       await new Promise((resolve) => setTimeout(resolve, 2000)); // TODO: replace with signIn(email, password)
       toast.success("Success. Verify OTP");
-      router.push("/auth/verify-otp");
+      router.push("/auth/verify-otp?mode=login");
     } catch (error) {
       toast.error("Login failed. Please try again.");
       console.error(error);
@@ -62,7 +62,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"form">)
             <FieldLabel htmlFor="password" className="text-[#D6DDE8] text-sm font-medium">
               Password
             </FieldLabel>
-            <a href="#" className="ml-auto text-sm text-[#2D64C8] hover:text-[#2D64C8]/90! hover:underline">
+            <a href="/auth/forgot-password" className="ml-auto text-sm text-[#2D64C8] hover:text-[#2D64C8]/90! hover:underline">
               Forgot your password?
             </a>
           </div>
@@ -96,7 +96,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"form">)
         {/* Footer */}
         <FieldDescription className="text-left text-[#B0BDD0] text-sm flex items-center justify-between gap-1.5">
           <span>Don&apos;t have an account?</span>
-          <a href="#" className="no-underline! ml-auto text-sm text-[#2D64C8] hover:text-[#2D64C8]/90! hover:underline!">
+          <a href="/auth/signup" className="no-underline! ml-auto text-sm text-[#2D64C8] hover:text-[#2D64C8]/90! hover:underline!">
             Sign up
           </a>
         </FieldDescription>

@@ -1,8 +1,8 @@
-// verify-otp-page.tsx
-import { VerifyOtpForm } from "@/components/verifyotp-form";
+// forgot-password/page.tsx
+import { ForgotPasswordForm } from "@/components/forgot-password-form";
 import Image from "next/image";
 
-export default function VerifyOtpPage() {
+export default function ForgotPasswordPage() {
   return (
     <div className="grid min-h-svh lg:grid-cols-2 bg-[#0F1F3D] 2xl:grid-cols-[1fr_auto_1fr]">
       <div className="hidden 2xl:block bg-[#0F1F3D]" />
@@ -21,7 +21,7 @@ export default function VerifyOtpPage() {
           </a>
           <div className="flex flex-1 items-center justify-start 2xl:flex-none">
             <div className="w-full">
-              <VerifyOtpForm />
+              <ForgotPasswordForm />
             </div>
           </div>
           {/* Footer */}
