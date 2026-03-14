@@ -19,6 +19,7 @@ import {
   SidebarHeader,
   SidebarRail,
   SidebarSeparator,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   GalleryVerticalEndIcon,
@@ -235,23 +236,21 @@ const data = {
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { state } = useSidebar();
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild className="px-4">
-              <a href="/dashboard" className="flex items-center gap-3">
+          <SidebarMenuItem className="flex">
+            <SidebarMenuButton size={state === "collapsed" ? "sm" : "lg"} asChild>
+              <a href="/dashboard" className="flex flex-1 px-4">
                 <div className="flex text-xs font-extrabold items-center justify-center border border-[#B0BDD0] text-primary-foreground w-8 h-8 shrink-0 [clip-path:polygon(0_0,100%_0,100%_100%,27%_100%,0_73%)]">
                   SR
                 </div>
-                <div className="flex items-center gap-1">
-                  <span className="font-bold text-white text-sm tracking-tight">
-                    swift
-                  </span>
-                  <span className="font-bold text-[#B0BDD0] text-sm tracking-tight">
-                    rcms
-                  </span>
+                <div className="flex items-center gap-1 group-data-[collapsible=icon]:hidden">
+                  <span className="font-bold text-white text-sm tracking-tight">swift</span>
+                  <span className="font-bold text-[#B0BDD0] text-sm tracking-tight">rcms</span>
                 </div>
               </a>
             </SidebarMenuButton>
