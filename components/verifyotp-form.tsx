@@ -1,4 +1,3 @@
-// verify-otp-form.tsx
 "use client";
 
 import { cn } from "@/lib/utils";
@@ -12,25 +11,29 @@ import { useRouter, useSearchParams } from "next/navigation";
 const RESEND_COOLDOWN = 60;
 
 const redirectMap: Record<string, string> = {
-  login:  "/dashboard",
+  login: "/dashboard",
   signup: "/auth/set-password",
-  reset:  "/auth/reset-password",
+  reset: "/auth/reset-password",
 };
 
 const backMap: Record<string, string> = {
-  login:  "/auth/login",
+  login: "/auth/login",
   signup: "/auth/signup",
-  reset:  "/auth/forgot-password",
+  reset: "/auth/forgot-password",
 };
 
-export function VerifyOtpForm({ phone = "+254 7** *** *09", className, ...props }: { phone?: string } & React.ComponentProps<"form">) {
+export function VerifyOtpForm({
+  className,
+  ...props
+}: React.ComponentProps<"form">) {
   const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
   const [isLoading, setIsLoading] = useState(false);
   const [cooldown, setCooldown] = useState(RESEND_COOLDOWN);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
+
   const searchParams = useSearchParams();
-  const mode = searchParams.get("mode") ?? "login";
+  const mode = searchParams.get("mode") || "login";
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -46,14 +49,20 @@ export function VerifyOtpForm({ phone = "+254 7** *** *09", className, ...props 
     if (value && index < 5) inputRefs.current[index + 1]?.focus();
   };
 
-  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (
+    index: number,
+    e: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
     if (e.key === "Backspace" && !otp[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
   };
 
   const handlePaste = (e: React.ClipboardEvent) => {
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const pasted = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 6);
     if (pasted.length === 6) {
       setOtp(pasted.split(""));
       inputRefs.current[5]?.focus();
@@ -66,7 +75,7 @@ export function VerifyOtpForm({ phone = "+254 7** *** *09", className, ...props 
     try {
       await new Promise((resolve) => setTimeout(resolve, 2000)); // TODO: replace with verifyOtp(otp.join(""))
       toast.success("Phone verified.");
-      router.push(redirectMap[mode] ?? "/dashboard");
+      router.push(redirectMap[mode]);
     } catch (error) {
       toast.error("Invalid OTP. Please try again.");
       console.error(error);
@@ -88,18 +97,29 @@ export function VerifyOtpForm({ phone = "+254 7** *** *09", className, ...props 
   };
 
   return (
-    <form className={cn("flex flex-col gap-5", className)} onSubmit={handleSubmit} {...props}>
+    <form
+      className={cn("flex flex-col gap-5", className)}
+      onSubmit={handleSubmit}
+      {...props}
+    >
       <FieldGroup>
         {/* Header */}
         <div className="flex flex-col items-start gap-4 text-left">
-          <a href={backMap[mode] ?? "/auth/login"} className="flex items-center gap-2 text-sm text-[#B0BDD0] hover:text-white transition-colors">
+          <a
+            href={backMap[mode] ?? "/auth/login"}
+            className="flex items-center gap-2 text-sm text-[#B0BDD0] hover:text-white transition-colors"
+          >
             <ArrowLeft className="w-4 h-4" />
             Back
           </a>
           <h1 className="text-3xl font-bold text-white">OTP Verification</h1>
           <div>
-            <p className="text-base text-[#B0BDD0]">We&apos;ve sent a 6 digit code to</p>
-            <p className="text-base font-semibold text-white">{phone}</p>
+            <p className="text-base text-[#B0BDD0]">
+              We&apos;ve sent a 6 digit code to
+            </p>
+            <p className="text-base font-semibold text-white">
+              {"+2547*****309"} {/** Placeholder for actual phone number */}
+            </p>
           </div>
         </div>
 
@@ -108,7 +128,9 @@ export function VerifyOtpForm({ phone = "+254 7** *** *09", className, ...props 
           {otp.map((digit, index) => (
             <input
               key={index}
-              ref={(el) => { inputRefs.current[index] = el; }}
+              ref={(el) => {
+                inputRefs.current[index] = el;
+              }}
               type="text"
               inputMode="numeric"
               maxLength={1}
@@ -143,7 +165,11 @@ export function VerifyOtpForm({ phone = "+254 7** *** *09", className, ...props 
           {cooldown > 0 ? (
             <span className="text-[#2D64C8] font-medium">{cooldown}s</span>
           ) : (
-            <button type="button" onClick={handleResend} className="text-[#2D64C8] font-medium hover:underline">
+            <button
+              type="button"
+              onClick={handleResend}
+              className="text-[#2D64C8] font-medium hover:underline"
+            >
               Resend
             </button>
           )}

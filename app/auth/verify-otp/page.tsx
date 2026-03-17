@@ -1,6 +1,10 @@
-// verify-otp-page.tsx
 import { VerifyOtpForm } from "@/components/verifyotp-form";
 import Image from "next/image";
+import { Suspense } from "react";
+
+function VerifyOtpFormFallback() {
+  return <></>;
+}
 
 export default function VerifyOtpPage() {
   return (
@@ -16,19 +20,27 @@ export default function VerifyOtpPage() {
             </div>
             <div className="flex gap-1.5">
               <span className="font-extrabold text-white text-xl">swift</span>
-              <span className="font-extrabold text-[#B0BDD0] text-xl">rcms</span>
+              <span className="font-extrabold text-[#B0BDD0] text-xl">
+                rcms
+              </span>
             </div>
           </a>
           <div className="flex flex-1 items-center justify-start 2xl:flex-none">
             <div className="w-full">
-              <VerifyOtpForm />
+              <Suspense fallback={<VerifyOtpFormFallback />}>
+                <VerifyOtpForm />
+              </Suspense>
             </div>
           </div>
           {/* Footer */}
           <div className="flex gap-4 justify-start text-sm text-[#B0BDD0]">
-            <a href="#" className="hover:text-white transition-colors">Terms & Conditions</a>
+            <a href="#" className="hover:text-white transition-colors">
+              Terms & Conditions
+            </a>
             <span>·</span>
-            <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
+            <a href="#" className="hover:text-white transition-colors">
+              Privacy Policy
+            </a>
           </div>
         </div>
       </div>
@@ -40,7 +52,8 @@ export default function VerifyOtpPage() {
             Collect smarter. Manage better.
           </h2>
           <p className="mt-4 text-[#B0BDD0] text-base max-w-md">
-            Oversee rent, tenants and payments all in one place anytime, anywhere.
+            Oversee rent, tenants and payments all in one place anytime,
+            anywhere.
           </p>
         </div>
         <div className="z-10 w-full h-full flex flex-col justify-center overflow-visible">

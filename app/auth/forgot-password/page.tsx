@@ -1,4 +1,3 @@
-// forgot-password/page.tsx
 import { ForgotPasswordForm } from "@/components/forgot-password-form";
 import Image from "next/image";
 

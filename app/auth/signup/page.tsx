@@ -1,4 +1,3 @@
-
 import { SignupForm } from "@/components/signup-form";
 import Image from "next/image";
 
@@ -21,28 +20,24 @@ export default function SignupPage() {
               </span>
             </div>
           </a>
-          
+
           <div className="flex flex-1 items-center justify-start 2xl:flex-none">
             <div className="w-full">
               <SignupForm />
             </div>
           </div>
 
-                  {/* Footer */}
-        <div className="flex gap-4 justify-start text-sm text-[#B0BDD0] ">
-          <a href="#" className="hover:text-white transition-colors">
-            Terms & Conditions
-          </a>
-          <span>·</span>
-          <a href="#" className="hover:text-white transition-colors">
-            Privacy Policy
-          </a>
+          {/* Footer */}
+          <div className="flex gap-4 justify-start text-sm text-[#B0BDD0] ">
+            <a href="#" className="hover:text-white transition-colors">
+              Terms & Conditions
+            </a>
+            <span>·</span>
+            <a href="#" className="hover:text-white transition-colors">
+              Privacy Policy
+            </a>
+          </div>
         </div>
-
-          
-        </div>
-
-
       </div>
 
       {/* Hero Panel */}

@@ -1,4 +1,3 @@
-// set-password-page.tsx
 import { SetPasswordForm } from "@/components/set-password-form";
 import Image from "next/image";
 

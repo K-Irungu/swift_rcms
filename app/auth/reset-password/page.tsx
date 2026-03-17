@@ -1,4 +1,3 @@
-// reset-password/page.tsx
 import { ResetPasswordForm } from "@/components/reset-password-form";
 import Image from "next/image";
 
