@@ -216,23 +216,7 @@ const data = {
     },
   ],
 
-  projects: [
-    // {
-    //   name: "Design Engineering",
-    //   url: "#",
-    //   icon: <FrameIcon />,
-    // },
-    // {
-    //   name: "Sales & Marketing",
-    //   url: "#",
-    //   icon: <PieChartIcon />,
-    // },
-    // {
-    //   name: "Travel",
-    //   url: "#",
-    //   icon: <MapIcon />,
-    // },
-  ],
+
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -243,8 +227,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem className="flex">
-            <SidebarMenuButton size={state === "collapsed" ? "sm" : "lg"} asChild>
-              <a href="/dashboard" className="flex flex-1 px-4">
+            <SidebarMenuButton size={state === "collapsed" ? "sm" : "lg"} asChild className="hover:bg-transparent" >
+              <a href="/dashboard" className="flex flex-1 px-4 ">
                 <div className="flex text-xs font-extrabold items-center justify-center border border-[#B0BDD0] text-primary-foreground w-8 h-8 shrink-0 [clip-path:polygon(0_0,100%_0,100%_100%,27%_100%,0_73%)]">
                   SR
                 </div>
@@ -260,9 +244,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain groups={data.navGroups} />
-        {/* <NavProjects projects={data.projects} /> */}
+
       </SidebarContent>
-      <SidebarFooter>{/* <NavUser user={data.user} /> */}</SidebarFooter>
+
       <SidebarRail />
     </Sidebar>
   );

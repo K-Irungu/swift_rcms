@@ -49,7 +49,7 @@ export function NavNotifications() {
         align="end"
         sideOffset={10}
       >
-        <DropdownMenuLabel className="font-semibold py-2 px-4">
+        <DropdownMenuLabel className="font-semibold p-2 text-sm">
           Notifications
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -78,7 +78,7 @@ export function NavNotifications() {
         </DropdownMenuGroup>
 
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="cursor-pointer justify-center text-xs font-medium text-primary py-2.5">
+        <DropdownMenuItem className="cursor-pointer justify-center text-sm font-medium text-primary py-2.5">
           Mark all as read
         </DropdownMenuItem>
       </DropdownMenuContent>

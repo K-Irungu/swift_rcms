@@ -49,7 +49,7 @@ export function NavUser({
                 <AvatarFallback className="rounded-lg">CN</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight hidden xl:grid">
-                <span className="truncate font-medium text-xs">{user.name}</span>
+                <span className="truncate font-medium text-sm">{user.name}</span>
               </div>
               <ChevronsUpDownIcon className="ml-auto size-4" />
             </SidebarMenuButton>
@@ -61,14 +61,14 @@ export function NavUser({
             sideOffset={10}
           >
             <DropdownMenuGroup>
-              <DropdownMenuItem className="cursor-pointer text-xs">
+              <DropdownMenuItem className="cursor-pointer text-sm">
                 <CircleUser  />
                 Account
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem className="cursor-pointer text-xs">
+            <DropdownMenuItem className="cursor-pointer text-sm">
               <LogOutIcon />
               Log out
             </DropdownMenuItem>

@@ -23,7 +23,7 @@ export function ArrearsBanner() {
         </p>
       </div>
       <Button
-        className="bg-[#2D64C8] hover:bg-[#2D64C8]/90 gap-2 cursor-pointer w-36 "
+        className="bg-[#2D64C8] hover:bg-[#2D64C8]/90 gap-2 cursor-pointer w-36 text-xs font-semibold"
         disabled={loadingViewArrears}
         onClick={handleViewArrears}
       >
