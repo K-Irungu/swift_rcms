@@ -37,6 +37,24 @@ const alerts: Alert[] = [
     description: "Plumbing issue · 3 days unassigned",
     action: "Assign",
   },
+  {
+    id: 5,
+    title: "Maintenance Issue Unassigned · Unit 7C, Riverside Block",
+    description: "Plumbing issue · 3 days unassigned",
+    action: "Assign",
+  },
+  {
+    id: 6,
+    title: "Maintenance Issue Unassigned · Unit 7C, Riverside Block",
+    description: "Plumbing issue · 3 days unassigned",
+    action: "Assign",
+  },
+  {
+    id: 7,
+    title: "Maintenance Issue Unassigned · Unit 7C, Riverside Block",
+    description: "Plumbing issue · 3 days unassigned",
+    action: "Assign",
+  },
 ];
 
 const totalAlerts = 12;
@@ -44,41 +62,39 @@ const totalAlerts = 12;
 export function AlertsSection() {
   return (
     <Card>
-      <CardHeader className="flex flex-row items-start justify-between border-b pb-3">
-        <div className="flex flex-col gap-0.5">
-          <p className="text-sm font-semibold">Alerts</p>
-          <p className="text-xs uppercase font-extrabold tracking-[0.12em] text-muted-foreground/60">
+      <CardHeader className="flex flex-row items-center justify-between border-b pb-3">
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-semibold">Alerts</p>
+          <p className="text-xs text-muted-foreground">
             {totalAlerts} items requiring your attention · Showing{" "}
             {alerts.length}
           </p>
         </div>
-        <Button variant="outline" className="gap-1.5 text-xs font-semibold h-8 px-3">
+        <Button variant="outline" className="gap-1.5 text-xs font-semibold h-8 px-3 w-36 cursor-pointer">
           View All Alerts <ArrowRight className="size-3.5" />
         </Button>
       </CardHeader>
-      <CardContent className="p-0">
-        {alerts.map((alert, index) => (
-          <div
-            key={alert.id}
-            className={`flex items-center justify-between px-4 py-3 ${
-              index !== alerts.length - 1 ? "border-b" : ""
-            }`}
-          >
-            <div className="flex flex-col gap-0.5">
-              <p className="text-sm font-medium">{alert.title}</p>
-              <p className="text-xs text-muted-foreground">
-                {alert.description}
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              className="text-xs font-semibold h-8 px-3 shrink-0 ml-4"
-            >
-              {alert.action}
-            </Button>
-          </div>
-        ))}
-      </CardContent>
+      <CardContent className="flex flex-col overflow-y-auto max-h-64 ">
+  {alerts.map((alert, index) => (
+    <div
+      key={alert.id}
+      className={`flex items-center justify-between py-2 ${
+        index !== alerts.length - 1 ? "border-b" : ""
+      }`}
+    >
+      <div className="flex flex-col gap-1">
+        <p className="text-xs font-semibold">{alert.title}</p>
+        <p className="text-xs text-muted-foreground">{alert.description}</p>
+      </div>
+      <Button
+        variant="outline"
+        className="text-xs font-semibold h-8 px-3 shrink-0 ml-4 w-36 cursor-pointer"
+      >
+        {alert.action}
+      </Button>
+    </div>
+  ))}
+</CardContent>
     </Card>
   );
 }
