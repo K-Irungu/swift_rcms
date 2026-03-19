@@ -339,7 +339,13 @@ export default function PropertiesPage() {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
-  const [dateFilter, setDateFilter] = React.useState<Date | undefined>();
+  const [dateFilter, setDateFilter] = React.useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: undefined,
+    to: undefined,
+  });
   const [pagination, setPagination] = React.useState({
     pageIndex: 0,
     pageSize: 10,
@@ -348,12 +354,11 @@ export default function PropertiesPage() {
   const filteredData = React.useMemo(() => {
     return properties.filter((p) => {
       if (statusFilter !== "all" && p.status !== statusFilter) return false;
-      if (dateFilter) {
-        const sameDay =
-          p.createdAt.getFullYear() === dateFilter.getFullYear() &&
-          p.createdAt.getMonth() === dateFilter.getMonth() &&
-          p.createdAt.getDate() === dateFilter.getDate();
-        if (!sameDay) return false;
+      if (dateFilter.from && p.createdAt < dateFilter.from) return false;
+      if (dateFilter.to) {
+        const toEnd = new Date(dateFilter.to);
+        toEnd.setHours(23, 59, 59, 999);
+        if (p.createdAt > toEnd) return false;
       }
       return true;
     });
@@ -397,56 +402,72 @@ export default function PropertiesPage() {
             <SelectTrigger className="bg-white h-8 w-36 text-xs border-border rounded-md focus:ring-0 focus-visible:ring-0 text-muted-foreground cursor-pointer">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
-            <SelectContent className="p-1 min-w-36 rounded-md" position="popper">
+            <SelectContent
+              className="p-1 min-w-36 rounded-md"
+              position="popper"
+            >
               {" "}
-              <SelectItem className="text-xs cursor-pointer rounded-sm" value="all">
+              <SelectItem
+                className="text-xs cursor-pointer rounded-sm"
+                value="all"
+              >
                 All Statuses
               </SelectItem>
-              <SelectItem className="text-xs cursor-pointer rounded-sm" value="ACTIVE">
+              <SelectItem
+                className="text-xs cursor-pointer rounded-sm"
+                value="ACTIVE"
+              >
                 Active
               </SelectItem>
-              <SelectItem className="text-xs cursor-pointer rounded-sm" value="PENDING">
+              <SelectItem
+                className="text-xs cursor-pointer rounded-sm"
+                value="PENDING"
+              >
                 Pending
               </SelectItem>
             </SelectContent>
           </Select>
 
           {/* Date filter */}
-          <Popover >
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="h-8 gap-2 text-xs font-normal text-muted-foreground border-border rounded-md hover:bg-black/5 cursor-pointer focus-visible:ring-0 focus-visible:outline-none"
-              >
-                <CalendarIcon className="size-4 text-muted-foreground" />
-                {dateFilter
-                  ? format(dateFilter, "MMM d, yyyy")
-                  : "Filter by date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 [&_*]:text-xs" align="start">
-              {" "}
-              <Calendar
-                mode="single"
-                selected={dateFilter}
-                onSelect={setDateFilter}
-                initialFocus
-                className="text-xs"
-              />
-              {dateFilter && (
-                <div className="p-2 border-t">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full text-xs"
-                    onClick={() => setDateFilter(undefined)}
-                  >
-                    Clear date
-                  </Button>
-                </div>
-              )}
-            </PopoverContent>
-          </Popover>
+      <Popover>
+  <PopoverTrigger asChild>
+    <Button
+      variant="outline"
+      className="h-8 gap-2 text-xs font-normal text-muted-foreground border-border rounded-md hover:bg-black/5 cursor-pointer focus-visible:ring-0 focus-visible:outline-none"
+    >
+      <CalendarIcon className="size-4 text-muted-foreground" />
+      {dateFilter.from && dateFilter.to
+        ? `${format(dateFilter.from, "MMM d")} – ${format(dateFilter.to, "MMM d, yyyy")}`
+        : dateFilter.from
+        ? `From ${format(dateFilter.from, "MMM d, yyyy")}`
+        : "Filter by date"}
+    </Button>
+  </PopoverTrigger>
+  <PopoverContent className="w-auto p-0 [&_*]:text-xs" align="start">
+    <Calendar
+      mode="range"
+      selected={{ from: dateFilter.from, to: dateFilter.to }}
+      onSelect={(range) =>
+        setDateFilter({ from: range?.from, to: range?.to })
+      }
+      initialFocus
+      numberOfMonths={2}
+      className="text-xs"
+    />
+    {(dateFilter.from || dateFilter.to) && (
+      <div className="p-2 border-t">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full text-xs"
+          onClick={() => setDateFilter({ from: undefined, to: undefined })}
+        >
+          Clear dates
+        </Button>
+      </div>
+    )}
+  </PopoverContent>
+</Popover>
 
           {/* Search */}
           <div className="relative  bg-white rounded-md">
