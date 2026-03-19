@@ -89,45 +89,47 @@ export function CollectionRate() {
           % of expected rent collected · March 2026
         </p>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3 py-2 overflow-y-auto max-h-64">
-     {properties.map((property, index) => (
-  <div key={property.name} className="flex flex-row items-start gap-2">
-    {/* Number column */}
-    <span className="text-xs text-muted-foreground w-4 pt-0.5 shrink-0 ">
-      {index + 1}.
-    </span>
+      <CardContent className="flex flex-col gap-2 overflow-y-auto max-h-64">
+        {properties.map((property, index) => (
+          <div key={property.name} className="flex flex-row items-start gap-2 cursor-pointer hover:bg-muted rounded-md px-1 -mx-1 transition-colors py-2">
+            {/* Number column */}
+            <span className="text-xs text-muted-foreground w-4 pt-0.5 shrink-0 ">
+              {index + 1}.
+            </span>
 
-    {/* Property content */}
-    <div className="flex flex-col gap-2 flex-1 min-w-0 ">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold">{property.name}</span>
-          <span className="text-xs text-muted-foreground">
-            {property.units} units
-          </span>
-        </div>
-        <div className="flex items-start gap-2">
-          <span className={`text-xs px-2 py-0.5 rounded-md ${statusStyles[property.status]}`}>
-            {property.status}
-          </span>
-          <span className="text-xs font-bold tabular-nums w-8 text-right">
-            {property.percentage}%
-          </span>
-          <span className="text-xs text-muted-foreground tabular-nums">
-            KES {property.collected.toLocaleString()} /{" "}
-            {property.target.toLocaleString()}
-          </span>
-        </div>
-      </div>
-      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-        <div
-          className={`h-full rounded-full ${progressColor[property.status]}`}
-          style={{ width: `${property.percentage}%` }}
-        />
-      </div>
-    </div>
-  </div>
-))}
+            {/* Property content */}
+            <div className="flex flex-col gap-2 flex-1 min-w-0 ">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold">{property.name}</span>
+                  <span className="text-xs text-muted-foreground hidden sm:block">
+                    {property.units} units
+                  </span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-md hidden sm:block  ${statusStyles[property.status]}`}
+                  >
+                    {property.status}
+                  </span>
+                  <span className="text-xs font-bold tabular-nums w-8 text-right">
+                    {property.percentage}%
+                  </span>
+                  <span className="text-xs text-muted-foreground tabular-nums hidden sm:block">
+                    KES {property.collected.toLocaleString()} /{" "}
+                    {property.target.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${progressColor[property.status]}`}
+                  style={{ width: `${property.percentage}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
       </CardContent>
     </Card>
   );
