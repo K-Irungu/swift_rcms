@@ -1,12 +1,9 @@
-import { DataTable } from "@/components/data-table";
+
 import { SectionCards } from "@/components/section-cards";
 import { ArrearsBanner } from "@/components/arrears-banner";
-
-import data from "./data.json";
 import { OccupancyCard } from "@/components/occupancy-card";
 import { CollectionRate } from "@/components/collection-rate";
 import { AlertsSection } from "@/components/alerts-section";
-
 
 export default function Dashboard() {
   return (
@@ -15,7 +12,6 @@ export default function Dashboard() {
         <div className="flex flex-col gap-4 p-4 ">
           <SectionCards />
           <ArrearsBanner />
-
           <div className="grid grid-cols-1 gap-3 @xl/main:grid-cols-2">
             <CollectionRate />
             <OccupancyCard />

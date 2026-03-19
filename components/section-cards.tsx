@@ -51,7 +51,10 @@ export function SectionCards() {
       {/* Row 1 — Count Cards */}
       <div className="grid grid-cols-1 gap-4   @xl/main:grid-cols-3 ">
         {statCards.map((card) => (
-          <Card key={card.label} className="@container/card  cursor-pointer hover:bg-muted rounded-md transition-colors ">
+          <Card
+            key={card.label}
+            className="@container/card  cursor-pointer hover:bg-muted rounded-md transition-colors "
+          >
             <CardHeader>
               <CardDescription>{card.label}</CardDescription>
               <CardTitle className="text-xl font-semibold tabular-nums">
@@ -69,7 +72,10 @@ export function SectionCards() {
           const TrendIcon = isUp ? TrendingUpIcon : TrendingDownIcon;
 
           return (
-            <Card key={card.label} className="@container/card hover:bg-muted rounded-md transition-colors cursor-pointer">
+            <Card
+              key={card.label}
+              className="@container/card hover:bg-muted rounded-md transition-colors cursor-pointer"
+            >
               <CardHeader className=" ">
                 <CardDescription>
                   {card.label} · {currentMonth}
@@ -77,14 +83,10 @@ export function SectionCards() {
                 <CardTitle className="text-xl font-semibold tabular-nums">
                   {card.value}
                 </CardTitle>
-                {/* <CardAction>
-                  <Badge variant="outline">
-                    <TrendIcon className="size-3" />
-                    {card.trend} vs Feb
-                  </Badge>
-                </CardAction> */}
               </CardHeader>
-              <CardFooter className={`flex flex-1 ${card.badge ? 'justify-between' : 'justify-end'}  gap-1.5 text-sm`}>
+              <CardFooter
+                className={`flex flex-1 ${card.badge ? "justify-between" : "justify-end"}  gap-1.5 text-sm`}
+              >
                 {" "}
                 {card.badge && (
                   <Badge className="bg-green-100 text-green-700 border-0 text-xs font-medium">

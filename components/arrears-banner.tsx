@@ -1,9 +1,16 @@
-// components/arrears-banner.tsx
+"use client";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 
 export function ArrearsBanner() {
+  const [loadingViewArrears, setLoadingViewArrears] = useState(false);
+
+  const handleViewArrears = () => {
+    setLoadingViewArrears(true);
+    setTimeout(() => setLoadingViewArrears(false), 2000);
+  };
   return (
     <Card className="flex flex-row items-center justify-between px-4 py-">
       <div className="flex flex-col gap-2">
@@ -15,8 +22,18 @@ export function ArrearsBanner() {
           4 Tenants · Oldest Debt: 47 Days
         </p>
       </div>
-      <Button className="bg-[#2D64C8] hover:bg-[#2D64C8]/90 gap-2 hover: cursor-pointer">
-        View Arrears <ArrowRight className="size-4" />
+      <Button
+        className="bg-[#2D64C8] hover:bg-[#2D64C8]/90 gap-2 cursor-pointer w-36 "
+        disabled={loadingViewArrears}
+        onClick={handleViewArrears}
+      >
+        {loadingViewArrears ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <>
+            View Arrears <ArrowRight className="size-4" />
+          </>
+        )}
       </Button>
     </Card>
   );

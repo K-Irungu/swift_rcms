@@ -91,7 +91,10 @@ export function CollectionRate() {
       </CardHeader>
       <CardContent className="flex flex-col gap-2 overflow-y-auto max-h-64">
         {properties.map((property, index) => (
-          <div key={property.name} className="flex flex-row items-start gap-2 cursor-pointer hover:bg-muted rounded-md px-1 -mx-1 transition-colors py-2">
+          <div
+            key={property.name}
+            className="flex flex-row items-start gap-2 cursor-pointer hover:bg-muted rounded-md px-1 -mx-1 transition-colors py-2"
+          >
             {/* Number column */}
             <span className="text-xs text-muted-foreground w-4 pt-0.5 shrink-0 ">
               {index + 1}.
@@ -108,7 +111,7 @@ export function CollectionRate() {
                 </div>
                 <div className="flex items-start gap-2">
                   <span
-                    className={`text-xs px-2 py-0.5 rounded-md hidden sm:block  ${statusStyles[property.status]}`}
+                    className={`text-xs px-2 py-0.5 rounded-md hidden xl:block  ${statusStyles[property.status]}`}
                   >
                     {property.status}
                   </span>

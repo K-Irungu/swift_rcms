@@ -6,7 +6,6 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -18,10 +17,6 @@ import {
 } from "@/components/ui/sidebar";
 import {
   ChevronsUpDownIcon,
-  SparklesIcon,
-  BadgeCheckIcon,
-  CreditCardIcon,
-  BellIcon,
   LogOutIcon,
   CircleUser,
 } from "lucide-react";
@@ -38,7 +33,7 @@ export function NavUser({
   const { isMobile } = useSidebar();
 
   return (
-    <SidebarMenu>
+    <SidebarMenu className="">
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -47,15 +42,14 @@ export function NavUser({
           >
             <SidebarMenuButton
               size="lg"
-              className="hover:bg-black/5 rounded-xl hover:text-black   cursor-pointer outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-0 md:gap-5"
+              className="hover:bg-black/5 rounded-md hover:text-black h-auto py-1  cursor-pointer outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-0"
             >
-              <Avatar className="h-8 w-8 rounded-lg">
+              <Avatar className="h-6 w-6 rounded-lg">
                 <AvatarImage src={user.avatar} alt={user.name} />
                 <AvatarFallback className="rounded-lg">CN</AvatarFallback>
               </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
-                <span className="truncate text-xs">{user.email}</span>
+              <div className="grid flex-1 text-left text-sm leading-tight hidden xl:grid">
+                <span className="truncate font-medium text-xs">{user.name}</span>
               </div>
               <ChevronsUpDownIcon className="ml-auto size-4" />
             </SidebarMenuButton>
@@ -67,14 +61,14 @@ export function NavUser({
             sideOffset={10}
           >
             <DropdownMenuGroup>
-              <DropdownMenuItem className="cursor-pointer">
-                <CircleUser />
+              <DropdownMenuItem className="cursor-pointer text-xs">
+                <CircleUser  />
                 Account
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem className="cursor-pointer">
+            <DropdownMenuItem className="cursor-pointer text-xs">
               <LogOutIcon />
               Log out
             </DropdownMenuItem>
