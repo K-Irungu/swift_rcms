@@ -11,7 +11,23 @@ type PropertyCollection = {
 
 const properties: PropertyCollection[] = [
   {
-    name: "Greenwood Apartments",
+    name: "Greenwood Apartments 1",
+    units: 32,
+    collected: 124000,
+    target: 130000,
+    percentage: 97,
+    status: "On Track",
+  },
+  {
+    name: "Greenwood Apartments 2",
+    units: 32,
+    collected: 124000,
+    target: 130000,
+    percentage: 97,
+    status: "On Track",
+  },
+  {
+    name: "Greenwood Apartments 3",
     units: 32,
     collected: 124000,
     target: 130000,
@@ -74,41 +90,44 @@ export function CollectionRate() {
         </p>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 py-2 overflow-y-auto max-h-64">
-        {properties.map((property) => (
-          <div key={property.name} className="flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold">{property.name}</span>
-                <span className="text-xs text-muted-foreground">
-                  {property.units} units
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span
-                  className={`text-xs  px-2 py-0.5 rounded-md ${
-                    statusStyles[property.status]
-                  }`}
-                >
-                  {property.status}
-                </span>
-                <span className="text-xs font-bold tabular-nums w-8 text-right">
-                  {property.percentage}%
-                </span>
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  KES {property.collected.toLocaleString()} /{" "}
-                  {property.target.toLocaleString()}
-                </span>
-              </div>
-            </div>
-            {/* Progress bar */}
-            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-              <div
-                className={`h-full rounded-full ${progressColor[property.status]}`}
-                style={{ width: `${property.percentage}%` }}
-              />
-            </div>
-          </div>
-        ))}
+     {properties.map((property, index) => (
+  <div key={property.name} className="flex flex-row items-start gap-2">
+    {/* Number column */}
+    <span className="text-xs text-muted-foreground w-4 pt-0.5 shrink-0 ">
+      {index + 1}.
+    </span>
+
+    {/* Property content */}
+    <div className="flex flex-col gap-2 flex-1 min-w-0 ">
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold">{property.name}</span>
+          <span className="text-xs text-muted-foreground">
+            {property.units} units
+          </span>
+        </div>
+        <div className="flex items-start gap-2">
+          <span className={`text-xs px-2 py-0.5 rounded-md ${statusStyles[property.status]}`}>
+            {property.status}
+          </span>
+          <span className="text-xs font-bold tabular-nums w-8 text-right">
+            {property.percentage}%
+          </span>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            KES {property.collected.toLocaleString()} /{" "}
+            {property.target.toLocaleString()}
+          </span>
+        </div>
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+        <div
+          className={`h-full rounded-full ${progressColor[property.status]}`}
+          style={{ width: `${property.percentage}%` }}
+        />
+      </div>
+    </div>
+  </div>
+))}
       </CardContent>
     </Card>
   );
