@@ -27,7 +27,23 @@ const properties: PropertyCollection[] = [
     status: "At Risk",
   },
   {
-    name: "Riverside Block",
+    name: "Riverside Block 1",
+    units: 24,
+    collected: 43200,
+    target: 96000,
+    percentage: 45,
+    status: "Critical",
+  },
+  {
+    name: "Riverside Block 2",
+    units: 24,
+    collected: 43200,
+    target: 96000,
+    percentage: 45,
+    status: "Critical",
+  },
+  {
+    name: "Riverside Block 3",
     units: 24,
     collected: 43200,
     target: 96000,
@@ -52,30 +68,30 @@ export function CollectionRate() {
   return (
     <Card className="flex flex-col">
       <CardHeader className="border-b pb-3">
-        <p className="text-sm font-semibold">Collection Rate by Property</p>
-        <p className="text-xs uppercase font-extrabold tracking-[0.12em] text-muted-foreground/60">
+        <p className="text-xs font-semibold">Collection Rate by Property</p>
+        <p className="text-xs text-muted-foreground">
           % of expected rent collected · March 2026
         </p>
       </CardHeader>
-      <CardContent className="flex flex-col gap-5 pt-4">
+      <CardContent className="flex flex-col gap-3 py-2 overflow-y-auto max-h-64">
         {properties.map((property) => (
           <div key={property.name} className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold">{property.name}</span>
+                <span className="text-xs font-semibold">{property.name}</span>
                 <span className="text-xs text-muted-foreground">
                   {property.units} units
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <span
-                  className={`text-xs font-semibold px-2 py-0.5 rounded-md ${
+                  className={`text-xs  px-2 py-0.5 rounded-md ${
                     statusStyles[property.status]
                   }`}
                 >
                   {property.status}
                 </span>
-                <span className="text-sm font-bold tabular-nums w-8 text-right">
+                <span className="text-xs font-bold tabular-nums w-8 text-right">
                   {property.percentage}%
                 </span>
                 <span className="text-xs text-muted-foreground tabular-nums">
