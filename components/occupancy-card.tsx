@@ -16,7 +16,7 @@ export function OccupancyCard() {
           {totalUnits} units total · {currentMonth}
         </p>
       </CardHeader>
-      <CardContent className="pt-4 ">
+      <CardContent className="">
         <div className="grid grid-cols-2 divide-x rounded-md border">
           <div className="flex flex-col items-center justify-center py-6 gap-1">
             <span className="text-4xl font-bold tabular-nums">{occupiedUnits}</span>
@@ -33,11 +33,11 @@ export function OccupancyCard() {
         </div>
       </CardContent>
       <CardFooter className="flex items-center justify-between">
-        <span className="flex items-center gap-1 text-xs ">
-          <TrendingDownIcon className="size-3" />
+        <span className="hidden sm:flex items-center gap-1 text-xs ">
+          <TrendingDownIcon className="size-3"/>
           3% occupancy vs last month
         </span>
-        <Button variant="outline" className="gap-1.5 text-xs font-semibold h-8 px-3 cursor-pointer">
+        <Button variant="outline" className="gap-1.5 text-xs font-semibold h-8 px-3 cursor-pointer flex-1 sm:flex-initial ">
           View Vacant Units <ArrowRight className="size-3.5" />
         </Button>
       </CardFooter>

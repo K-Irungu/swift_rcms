@@ -20,8 +20,6 @@ export default function Dashboard() {
             <CollectionRate />
             <OccupancyCard />
           </div>
-
-          <div className="px-4 lg:px-6"></div>
           <AlertsSection />
         </div>
       </div>
