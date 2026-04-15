@@ -22,6 +22,19 @@ const backMap: Record<string, string> = {
   reset: "/auth/forgot-password",
 };
 
+function maskPhone(phone: string) {
+  // +254712345678 → +2547*****678
+  if (phone.length < 6) return phone;
+  return phone.slice(0, 4) + "*****" + phone.slice(-3);
+}
+
+function maskEmail(email: string) {
+  // john.doe@example.com → jo***@example.com
+  const [local, domain] = email.split("@");
+  if (!domain) return email;
+  return local.slice(0, 2) + "***@" + domain;
+}
+
 export function VerifyOtpForm({
   className,
   ...props
@@ -34,6 +47,8 @@ export function VerifyOtpForm({
 
   const searchParams = useSearchParams();
   const mode = searchParams.get("mode") || "login";
+  const phone = searchParams.get("phone") || "";
+  const email = searchParams.get("email") || "";
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -69,30 +84,71 @@ export function VerifyOtpForm({
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // TODO: replace with verifyOtp(otp.join(""))
-      toast.success("Phone verified.");
-      router.push(redirectMap[mode]);
-    } catch (error) {
-      toast.error("Invalid OTP. Please try again.");
-      console.error(error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleResend = async () => {
     if (cooldown > 0) return;
     setCooldown(RESEND_COOLDOWN);
+
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // TODO: replace with resendOtp()
-      toast.success("OTP resent.");
-    } catch (error) {
-      toast.error("Failed to resend OTP.");
-      console.error(error);
+      const res = await fetch("/api/auth/resend-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, email, mode }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to resend OTP");
+      }
+
+      toast.success("OTP resent successfully.");
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to resend OTP. Please try again.";
+      toast.error(message);
+    }
+  };
+
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      // API call to verify OTP
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          otp: otp.join(""),
+          phone,
+          email,
+          mode,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Invalid OTP");
+      }
+
+      toast.success("Verified successfully.");
+      router.push(redirectMap[mode] ?? "/dashboard");
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Invalid OTP. Please try again.";
+      toast.error(message);
+
+      // Clear the OTP inputs on failure so user can re-enter
+      setOtp(Array(6).fill(""));
+      inputRefs.current[0]?.focus();
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -113,13 +169,25 @@ export function VerifyOtpForm({
             Back
           </a>
           <h1 className="text-3xl font-bold text-white">OTP Verification</h1>
-          <div>
+          <div className="flex flex-col gap-1">
             <p className="text-base text-[#B0BDD0]">
-              We&apos;ve sent a 6 digit code to
+              We&apos;ve sent a 6-digit code to
             </p>
-            <p className="text-base font-semibold text-white">
-              {"+2547*****309"} {/** Placeholder for actual phone number */}
-            </p>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              {phone && (
+                <span className="text-base font-semibold text-white">
+                  {maskPhone(phone)}
+                </span>
+              )}
+              {phone && email && (
+                <span className="text-sm text-[#B0BDD0]">and</span>
+              )}
+              {email && (
+                <span className="text-base font-semibold text-white">
+                  {maskEmail(email)}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 

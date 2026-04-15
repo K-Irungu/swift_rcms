@@ -3,7 +3,6 @@ import { User, Role } from "../models/User";
 import { Tenant } from "../models/Tenant";
 import { ApiError } from "../utils/ApiError";
 import { connectDB } from "../db";
-import { send } from "process";
 import redis, { connectRedis } from "@/lib/redis";
 import crypto from "crypto";
 import { smsService } from "./sms.service";
@@ -88,7 +87,7 @@ export const authService = {
   async sendRegistrationOtp(input: Omit<RegisterInput, "password" | "role">) {
     await connectRedis();
 
-    const { phoneNumber } = input;
+    const { phoneNumber, email } = input;
     const identifier = phoneNumber;
     const key = `otp:register:${identifier}`;
 
@@ -119,7 +118,11 @@ export const authService = {
 
     // 4. Send OTP
     await smsService.send(phoneNumber, `Your OTP is ${otp}`);
-    await emailService.send(input.email, "Your Registration OTP", `Your OTP is ${otp}`);
+    await emailService.send(
+      email,
+      "Your Registration OTP",
+      `Your OTP is ${otp}`,
+    );
 
     return { message: "OTP sent successfully" };
   },
