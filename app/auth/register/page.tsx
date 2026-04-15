@@ -1,12 +1,12 @@
-import { SignupForm } from "@/components/signup-form";
+import { RegisterForm } from "@/components/register-form";
 import Image from "next/image";
 
-export default function SignupPage() {
+export default function RegisterPage() {
   return (
     <div className="grid min-h-svh lg:grid-cols-2 bg-[#0F1F3D] 2xl:grid-cols-[1fr_auto_1fr]">
       <div className="hidden 2xl:block bg-[#0F1F3D]" />
 
-      {/* Signup Form */}
+      {/* Register Form */}
       <div className="flex flex-col p-9 md:p-20 lg:col-span-1 w-full 2xl:max-w-xl 2xl:w-xl">
         <div className="flex flex-col flex-1 2xl:justify-center 2xl:gap-10">
           <a href="#" className="flex items-center gap-4 font-medium">
@@ -23,7 +23,7 @@ export default function SignupPage() {
 
           <div className="flex flex-1 items-center justify-start 2xl:flex-none">
             <div className="w-full">
-              <SignupForm />
+              <RegisterForm />
             </div>
           </div>
 

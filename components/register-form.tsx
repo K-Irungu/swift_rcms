@@ -14,32 +14,59 @@ import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
-export function SignupForm({
+export function RegisterForm({
   className,
   ...props
 }: React.ComponentProps<"form">) {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
 
-    const form = e.currentTarget;
-    const firstName = (form.elements.namedItem("firstName") as HTMLInputElement)
-      .value;
-    const lastName = (form.elements.namedItem("lastName") as HTMLInputElement)
-      .value;
-    const email = (form.elements.namedItem("email") as HTMLInputElement).value;
-    const phone = (form.elements.namedItem("phone") as HTMLInputElement).value;
-
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // TODO: replace with signUp(firstName, lastName, email, phone)
+      const formData = new FormData(e.currentTarget);
+
+      const firstName = formData.get("firstName") as string;
+      const lastName = formData.get("lastName") as string;
+
+      const payload = {
+        fullName: `${firstName} ${lastName}`,
+        email: formData.get("email"),
+        phoneNumber: formData.get("phone"),
+      };
+
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to send OTP");
+      }
+
       toast.success("OTP sent to your phone.");
-      router.push("/auth/verify-otp?mode=signup");
-    } catch (error) {
-      toast.error("Sign up failed. Please try again.");
-      console.error(error);
+
+      // pass phone to next page
+      router.push(
+        `/auth/verify-otp?mode=register&phone=${encodeURIComponent(
+          payload.phoneNumber as string,
+        )}`,
+      );
+    } catch (error: unknown) {
+      let message = "Sign up failed";
+
+      if (error instanceof Error) {
+        message = error.message;
+      }
+
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -72,6 +99,7 @@ export function SignupForm({
             </FieldLabel>
             <Input
               id="firstName"
+              name="firstName"
               type="text"
               placeholder="John"
               required
@@ -85,6 +113,7 @@ export function SignupForm({
             </FieldLabel>
             <Input
               id="lastName"
+              name="lastName"
               type="text"
               placeholder="Doe"
               required
@@ -100,6 +129,7 @@ export function SignupForm({
           </FieldLabel>
           <Input
             id="email"
+            name="email"
             type="email"
             placeholder="email@example.com"
             required
@@ -114,6 +144,7 @@ export function SignupForm({
           </FieldLabel>
           <Input
             id="phone"
+            name="phone"
             type="tel"
             placeholder="+254 700 000 000"
             required

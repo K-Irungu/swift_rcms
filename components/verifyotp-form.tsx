@@ -12,13 +12,13 @@ const RESEND_COOLDOWN = 60;
 
 const redirectMap: Record<string, string> = {
   login: "/dashboard",
-  signup: "/auth/set-password",
+  register: "/auth/set-password",
   reset: "/auth/reset-password",
 };
 
 const backMap: Record<string, string> = {
   login: "/auth/login",
-  signup: "/auth/signup",
+  register: "/auth/register",
   reset: "/auth/forgot-password",
 };
 
