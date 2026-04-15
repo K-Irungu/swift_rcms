@@ -15,7 +15,7 @@ import { TrendingUpIcon, TrendingDownIcon } from "lucide-react";
 const currentMonth = "March 2026";
 
 const statCards = [
-  { label: "Total Properties", value: "24" },
+  { label: "Total Properties", value: "100" },
   { label: "Total Units", value: "142" },
   { label: "Total Tenants", value: "118" },
 ];

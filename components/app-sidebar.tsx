@@ -67,8 +67,8 @@ const data = {
           icon: <Building />,
           hasDropdown: true,
           items: [
-            { title: "All Properties", url: "/properties" },
-            { title: "Add New", url: "/properties" },
+            { title: "All Properties", url: "/properties/all-properties" },
+            { title: "Add New", url: "/properties/new" },
           ],
         },
 
@@ -78,8 +78,8 @@ const data = {
           icon: <KeyRound />,
           hasDropdown: true,
           items: [
-            { title: "All Units", url: "/units" },
-            { title: "Add New", url: "/units" },
+            { title: "All Units", url: "/units/all-units" },
+            { title: "Add New", url: "/units/new" },
           ],
         },
       ],

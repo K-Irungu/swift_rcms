@@ -35,19 +35,19 @@ const properties: PropertyCollection[] = [
     status: "On Track",
   },
   {
-    name: "Parkview Heights",
+    name: "Parkview Villas ",
     units: 28,
     collected: 88000,
     target: 112000,
-    percentage: 79,
+    percentage: 100,
     status: "At Risk",
   },
   {
-    name: "Riverside Block 1",
+    name: "River side apartments",
     units: 24,
     collected: 43200,
     target: 96000,
-    percentage: 45,
+    percentage: 90,
     status: "Critical",
   },
   {
@@ -137,3 +137,4 @@ export function CollectionRate() {
     </Card>
   );
 }
+``
