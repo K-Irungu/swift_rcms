@@ -1,0 +1,1 @@
+// GET, PATCH, DELETE tenant by id
