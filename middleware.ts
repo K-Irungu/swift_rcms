@@ -58,6 +58,7 @@ export async function middleware(req: NextRequest) {
         userId: payload.userId,
         role: payload.role,
         email: payload.email,
+        fullName: payload.fullName, // add this
       })
         .setProtectedHeader({ alg: "HS256" })
         .setExpirationTime("15m")
@@ -69,7 +70,7 @@ export async function middleware(req: NextRequest) {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: 60 * 15,
+        maxAge: 60 * 5,
         path: "/",
       });
 
@@ -96,7 +97,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
-  ],
-}
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+};

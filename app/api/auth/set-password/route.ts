@@ -67,8 +67,9 @@ export async function POST(req: NextRequest) {
       user._id.toString(),
       user.role,
       user.email,
+      user.fullName, // add this
     );
-
+    
     // Step 7: Persist refresh token on the user document
     await User.findByIdAndUpdate(user._id, { refreshToken });
 
