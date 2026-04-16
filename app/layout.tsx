@@ -33,7 +33,7 @@ export default function RootLayout({
                 fontWeight: "500",
                 padding: "12px 16px",
               },
-              duration: 4000,
+              duration: 6000,
             }}
           />{" "}
         </TooltipProvider>

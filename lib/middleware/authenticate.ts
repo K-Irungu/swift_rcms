@@ -1,27 +1,25 @@
-// JWT Verification
-import { NextRequest } from 'next/server'
-import jwt from 'jsonwebtoken'
-import { ApiError } from '../utils/ApiError'
+// lib/middleware/authenticate.ts
+import { NextRequest } from "next/server"
+import jwt from "jsonwebtoken"
+import { ApiError } from "../utils/ApiError"
 
 export interface AuthPayload {
   userId: string
-  role: string
-  email: string
+  role:   string
+  email:  string
 }
 
 export function authenticate(req: NextRequest): AuthPayload {
-  const authHeader = req.headers.get('authorization')
+  // Read token from httpOnly cookie 
+  const token = req.cookies.get("accessToken")?.value
 
-  if (!authHeader?.startsWith('Bearer ')) {
-    throw ApiError.unauthorized('Missing or invalid authorization header')
+  if (!token) {
+    throw ApiError.unauthorized("Not authenticated")
   }
 
-  const token = authHeader.split(' ')[1]
-
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as AuthPayload
-    return payload
+    return jwt.verify(token, process.env.JWT_SECRET!) as AuthPayload
   } catch {
-    throw ApiError.unauthorized('Invalid or expired token')
+    throw ApiError.unauthorized("Invalid or expired token")
   }
 }

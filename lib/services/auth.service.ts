@@ -10,35 +10,33 @@ import { generateOtp, hashOtp } from "@/lib/utils/otp";
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
 interface RegisterOtpInput {
-  fullName:    string
-  email:       string
-  phoneNumber: string
+  fullName: string;
+  email: string;
+  phoneNumber: string;
 }
 
 interface LoginInput {
-  email:    string
-  password: string
+  email: string;
+  password: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 // Signs and returns a short-lived access token and a long-lived refresh token
-export const generateTokens = (userId: string, role: string, email: string) => {
+export const generateTokens = (userId: string, role: string, email: string, fullName: string) => {
   const accessToken = jwt.sign(
-    { userId, role, email },
+  { userId, role, email, fullName },
     process.env.JWT_SECRET!,
     {
-      expiresIn: (process.env.JWT_EXPIRES_IN ?? "15m") as SignOptions["expiresIn"],
+      expiresIn: (process.env.JWT_EXPIRES_IN ??
+        "15m") as SignOptions["expiresIn"],
     },
   );
 
-  const refreshToken = jwt.sign(
-    { userId },
-    process.env.JWT_REFRESH_SECRET!,
-    {
-      expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN ?? "7d") as SignOptions["expiresIn"],
-    },
-  );
+  const refreshToken = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, {
+    expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN ??
+      "7d") as SignOptions["expiresIn"],
+  });
 
   return { accessToken, refreshToken };
 };
@@ -46,7 +44,6 @@ export const generateTokens = (userId: string, role: string, email: string) => {
 // ─── Auth Service ─────────────────────────────────────────────────────────────
 
 export const authService = {
-
   async sendRegistrationOtp(input: RegisterOtpInput) {
     await connectRedis();
 
@@ -60,7 +57,7 @@ export const authService = {
     }
 
     // Step 2: Generate OTP and hash it before storing
-    const otp     = generateOtp();
+    const otp = generateOtp();
     const otpHash = hashOtp(otp);
 
     // Step 3: Store hashed OTP and registration payload in Redis with a 5 minute TTL
@@ -71,16 +68,21 @@ export const authService = {
     );
 
     // Step 4: Dispatch OTP to the user via SMS and email
-    await smsService.send(phoneNumber, `Your Swift RCMS OTP is ${otp}. It expires in 5 minutes.`)
-    await emailService.sendOtp(email, otp)
+    await smsService.send(
+      phoneNumber,
+      `Your Swift RCMS OTP is ${otp}. It expires in 5 minutes.`,
+    );
+    await emailService.sendOtp(email, otp);
   },
 
   async login(input: LoginInput) {
     await connectDB();
 
     // Step 1: Find user and verify account status
-    const user = await User.findOne({ email: input.email }).select("+passwordHash");
-    if (!user)          throw ApiError.unauthorized("Invalid email or password");
+    const user = await User.findOne({ email: input.email }).select(
+      "+passwordHash",
+    );
+    if (!user) throw ApiError.unauthorized("Invalid email or password");
     if (!user.isActive) throw ApiError.unauthorized("Account deactivated");
 
     // Step 2: Verify password against stored hash
@@ -92,6 +94,7 @@ export const authService = {
       user._id.toString(),
       user.role,
       user.email,
+      user.fullName,
     );
 
     await User.findByIdAndUpdate(user._id, { refreshToken });
@@ -105,7 +108,9 @@ export const authService = {
     // Step 1: Verify and decode the refresh token
     let payload: { userId: string };
     try {
-      payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET!) as { userId: string };
+      payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET!) as {
+        userId: string;
+      };
     } catch {
       throw ApiError.unauthorized("Invalid or expired refresh token");
     }
@@ -121,6 +126,7 @@ export const authService = {
       user._id.toString(),
       user.role,
       user.email,
+      user.fullName
     );
 
     await User.findByIdAndUpdate(user._id, { refreshToken });

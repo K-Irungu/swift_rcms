@@ -8,6 +8,7 @@ import { connectDB } from "@/lib/db";
 import { User, Role } from "@/lib/models/User";
 import { Landlord } from "@/lib/models/Landlord";
 import { generateTokens } from "@/lib/services/auth.service";
+import { setAuthCookies } from "@/lib/utils/cookies";
 
 // ─── Validation Schema ────────────────────────────────────────────────────────
 
@@ -74,7 +75,16 @@ export async function POST(req: NextRequest) {
     // Step 8: Clean up the verified session from Redis
     await redis.del(verifiedKey);
 
-    return NextResponse.json({ success: true, accessToken, refreshToken });
+    // Step 9: Set tokens as httpOnly cookies and return success
+    const response = NextResponse.json({
+      success: true,
+      message: "Account created successfully",
+      data: { user },
+    });
+
+    // Step 10: Set httpOnly cookies for access and refresh tokens to maintain session on the client
+    setAuthCookies(response, accessToken, refreshToken);
+    return response;
   } catch (error) {
     if (error instanceof ApiError) {
       return NextResponse.json(
