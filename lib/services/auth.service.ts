@@ -23,9 +23,14 @@ interface LoginInput {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 // Signs and returns a short-lived access token and a long-lived refresh token
-export const generateTokens = (userId: string, role: string, email: string, fullName: string) => {
+export const generateTokens = (
+  userId: string,
+  role: string,
+  email: string,
+  fullName: string,
+) => {
   const accessToken = jwt.sign(
-  { userId, role, email, fullName },
+    { userId, role, email, fullName },
     process.env.JWT_SECRET!,
     {
       expiresIn: (process.env.JWT_EXPIRES_IN ??
@@ -33,10 +38,14 @@ export const generateTokens = (userId: string, role: string, email: string, full
     },
   );
 
-  const refreshToken = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, {
-    expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN ??
-      "7d") as SignOptions["expiresIn"],
-  });
+  const refreshToken = jwt.sign(
+    { userId, role, email, fullName },
+    process.env.JWT_REFRESH_SECRET!,
+    {
+      expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN ??
+        "7d") as SignOptions["expiresIn"],
+    },
+  );
 
   return { accessToken, refreshToken };
 };
@@ -126,7 +135,7 @@ export const authService = {
       user._id.toString(),
       user.role,
       user.email,
-      user.fullName
+      user.fullName,
     );
 
     await User.findByIdAndUpdate(user._id, { refreshToken });

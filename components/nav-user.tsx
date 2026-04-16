@@ -26,13 +26,13 @@ export function NavUser({
   user,
 }: {
   user: {
-    name:   string;
-    email:  string;
+    name: string;
+    email: string;
     avatar: string;
   };
 }) {
-  const { isMobile }            = useSidebar();
-  const router                  = useRouter();
+  const { isMobile } = useSidebar();
+  const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
@@ -70,7 +70,9 @@ export function NavUser({
                 </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight hidden xl:grid">
-                <span className="truncate font-medium text-sm">{user.name}</span>
+                <span className="truncate font-medium text-sm">
+                  {user.name}
+                </span>
               </div>
               <ChevronsUpDownIcon className="ml-auto size-4" />
             </SidebarMenuButton>
@@ -102,7 +104,6 @@ export function NavUser({
               <LogOutIcon />
               {isLoggingOut ? "Logging out..." : "Log out"}
             </DropdownMenuItem>
-
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
