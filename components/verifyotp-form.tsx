@@ -7,6 +7,9 @@ import { useState, useRef, useEffect } from "react";
 import { Loader2, ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const RESEND_COOLDOWN = 60;
 
@@ -22,18 +25,22 @@ const backMap: Record<string, string> = {
   reset: "/auth/forgot-password",
 };
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// +254712345678 → +2547*****678
 function maskPhone(phone: string) {
-  // +254712345678 → +2547*****678
   if (phone.length < 6) return phone;
   return phone.slice(0, 4) + "*****" + phone.slice(-3);
 }
 
+// john.doe@example.com → jo***@example.com
 function maskEmail(email: string) {
-  // john.doe@example.com → jo***@example.com
   const [local, domain] = email.split("@");
   if (!domain) return email;
   return local.slice(0, 2) + "***@" + domain;
 }
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function VerifyOtpForm({
   className,
@@ -42,20 +49,26 @@ export function VerifyOtpForm({
   const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
   const [isLoading, setIsLoading] = useState(false);
   const [cooldown, setCooldown] = useState(RESEND_COOLDOWN);
+
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
 
+  // Capture phone, email, and mode (login/register/reset) from query params to send to the API
   const searchParams = useSearchParams();
   const mode = searchParams.get("mode") || "login";
   const phone = searchParams.get("phone") || "";
   const email = searchParams.get("email") || "";
 
+  // Counts down the resend cooldown timer one second at a time
   useEffect(() => {
     if (cooldown <= 0) return;
     const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
     return () => clearTimeout(timer);
   }, [cooldown]);
 
+  // ─── OTP Input Handlers ───────────────────────────────────────────────────
+
+  // Accepts only digits, updates state, and advances focus to the next input
   const handleChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return;
     const updated = [...otp];
@@ -64,6 +77,7 @@ export function VerifyOtpForm({
     if (value && index < 5) inputRefs.current[index + 1]?.focus();
   };
 
+  // Moves focus back to the previous input on backspace if the current input is empty
   const handleKeyDown = (
     index: number,
     e: React.KeyboardEvent<HTMLInputElement>,
@@ -73,6 +87,7 @@ export function VerifyOtpForm({
     }
   };
 
+  // Fills all 6 inputs at once when a full OTP is pasted
   const handlePaste = (e: React.ClipboardEvent) => {
     const pasted = e.clipboardData
       .getData("text")
@@ -84,6 +99,42 @@ export function VerifyOtpForm({
     }
   };
 
+  // ─── Actions ──────────────────────────────────────────────────────────────
+
+  // Submits the OTP to the API and redirects on success
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ otp: otp.join(""), phone, email, mode }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success)
+        throw new Error(data.message || "Invalid OTP");
+
+      toast.success("Verified successfully.");
+      const params = new URLSearchParams({ phone, email });
+      router.push(`${redirectMap[mode]}?${params.toString()}`);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Invalid OTP. Please try again.";
+      toast.error(message);
+      setOtp(Array(6).fill(""));
+      inputRefs.current[0]?.focus();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Requests a new OTP and resets the cooldown timer
   const handleResend = async () => {
     if (cooldown > 0) return;
     setCooldown(RESEND_COOLDOWN);
@@ -97,9 +148,8 @@ export function VerifyOtpForm({
 
       const data = await res.json();
 
-      if (!res.ok || !data.success) {
+      if (!res.ok || !data.success)
         throw new Error(data.message || "Failed to resend OTP");
-      }
 
       toast.success("OTP resent successfully.");
     } catch (error: unknown) {
@@ -111,46 +161,7 @@ export function VerifyOtpForm({
     }
   };
 
-  
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      // API call to verify OTP
-      const res = await fetch("/api/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          otp: otp.join(""),
-          phone,
-          email,
-          mode,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || "Invalid OTP");
-      }
-
-      toast.success("Verified successfully.");
-      router.push(redirectMap[mode] ?? "/dashboard");
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Invalid OTP. Please try again.";
-      toast.error(message);
-
-      // Clear the OTP inputs on failure so user can re-enter
-      setOtp(Array(6).fill(""));
-      inputRefs.current[0]?.focus();
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <form
@@ -161,14 +172,17 @@ export function VerifyOtpForm({
       <FieldGroup>
         {/* Header */}
         <div className="flex flex-col items-start gap-4 text-left">
-          <a
+          <Link
             href={backMap[mode] ?? "/auth/login"}
             className="flex items-center gap-2 text-sm text-[#B0BDD0] hover:text-white transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Back
-          </a>
+          </Link>
+
           <h1 className="text-3xl font-bold text-white">OTP Verification</h1>
+
+          {/* Masked delivery targets */}
           <div className="flex flex-col gap-1">
             <p className="text-base text-[#B0BDD0]">
               We&apos;ve sent a 6-digit code to
@@ -191,7 +205,7 @@ export function VerifyOtpForm({
           </div>
         </div>
 
-        {/* OTP Inputs */}
+        {/* OTP inputs — single digit per box, supports paste */}
         <div className="flex gap-3 justify-between" onPaste={handlePaste}>
           {otp.map((digit, index) => (
             <input
@@ -211,11 +225,11 @@ export function VerifyOtpForm({
           ))}
         </div>
 
-        {/* Submit */}
+        {/* Submit — disabled until all 6 digits are entered */}
         <Button
           type="submit"
           disabled={isLoading || otp.join("").length < 6}
-          className="bg-[#2D64C8] hover:bg-[#2D64C8]/90 hover:cursor-pointer h-11 font-semibold text-sm"
+          className="w-full bg-[#2D64C8] hover:bg-[#2D64C8]/90 hover:cursor-pointer h-11 font-semibold text-sm"
         >
           {isLoading ? (
             <>
@@ -227,16 +241,18 @@ export function VerifyOtpForm({
           )}
         </Button>
 
-        {/* Resend */}
+        {/* Resend — locked behind a cooldown timer */}
         <FieldDescription className="text-left text-[#B0BDD0] text-sm flex items-center gap-1.5">
-          <span>Resend code in</span>
           {cooldown > 0 ? (
-            <span className="text-[#2D64C8] font-medium">{cooldown}s</span>
+            <>
+              <span>Resend code in</span>
+              <span className="text-[#2D64C8] font-medium">{cooldown}s</span>
+            </>
           ) : (
             <button
               type="button"
               onClick={handleResend}
-              className="text-[#2D64C8] font-medium hover:underline"
+              className="text-[#2D64C8] font-medium hover:underline hover:cursor-pointer transition-colors"
             >
               Resend
             </button>

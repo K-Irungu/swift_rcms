@@ -31,27 +31,29 @@ export function RegisterForm({
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  // Sends registration details to the API, which generates and dispatches an OTP.
-  // On success, redirects to the OTP verification page with phone and email as query params.
+// ─── Submit function ────────────────────────────────────────────────────────────────
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
+      // Step 1: Extract form values and build payload
       const formData = new FormData(e.currentTarget);
       const firstName = formData.get("firstName") as string;
-      const lastName  = formData.get("lastName") as string;
+      const lastName = formData.get("lastName") as string;
 
       const payload = {
-        fullName:    `${firstName} ${lastName}`,
-        email:       formData.get("email") as string,
+        fullName: `${firstName} ${lastName}`,
+        email: formData.get("email") as string,
         phoneNumber: formData.get("phone") as string,
       };
 
-      const res  = await fetch("/api/auth/register", {
-        method:  "POST",
+      // Step 2: Send registration details to the API to generate and dispatch OTP
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(payload),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -60,10 +62,13 @@ export function RegisterForm({
         throw new Error(data.message || "Failed to send OTP");
       }
 
-      toast.success("OTP sent to your phone and email. Please verify to complete registration.");
+      // Step 3: Redirect to OTP verification page with phone and email as query params
+      toast.success(
+        "OTP sent to your phone and email. Please verify to complete registration.",
+      );
 
       const params = new URLSearchParams({
-        mode:  "register",
+        mode: "register",
         phone: payload.phoneNumber,
         email: payload.email,
       });
@@ -76,7 +81,7 @@ export function RegisterForm({
       setIsLoading(false);
     }
   };
-
+  
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
@@ -86,17 +91,20 @@ export function RegisterForm({
       {...props}
     >
       <FieldGroup>
-
         {/* Heading */}
         <div className="flex flex-col items-start gap-4 text-left">
           <h1 className="text-3xl font-bold text-white">Create an Account</h1>
-          <p className="text-base text-[#B0BDD0]">Enter your details to get started</p>
+          <p className="text-base text-[#B0BDD0]">
+            Enter your details to get started
+          </p>
         </div>
 
         {/* Name fields */}
         <div className="flex gap-4">
           <Field className="flex-1">
-            <FieldLabel htmlFor="firstName" className={labelClassName}>First Name</FieldLabel>
+            <FieldLabel htmlFor="firstName" className={labelClassName}>
+              First Name
+            </FieldLabel>
             <Input
               id="firstName"
               name="firstName"
@@ -108,7 +116,9 @@ export function RegisterForm({
             />
           </Field>
           <Field className="flex-1">
-            <FieldLabel htmlFor="lastName" className={labelClassName}>Last Name</FieldLabel>
+            <FieldLabel htmlFor="lastName" className={labelClassName}>
+              Last Name
+            </FieldLabel>
             <Input
               id="lastName"
               name="lastName"
@@ -123,7 +133,9 @@ export function RegisterForm({
 
         {/* Email */}
         <Field>
-          <FieldLabel htmlFor="email" className={labelClassName}>Email Address</FieldLabel>
+          <FieldLabel htmlFor="email" className={labelClassName}>
+            Email Address
+          </FieldLabel>
           <Input
             id="email"
             name="email"
@@ -137,7 +149,9 @@ export function RegisterForm({
 
         {/* Phone */}
         <Field>
-          <FieldLabel htmlFor="phone" className={labelClassName}>Phone Number</FieldLabel>
+          <FieldLabel htmlFor="phone" className={labelClassName}>
+            Phone Number
+          </FieldLabel>
           <Input
             id="phone"
             name="phone"
@@ -177,7 +191,6 @@ export function RegisterForm({
             Log in
           </Link>
         </FieldDescription>
-
       </FieldGroup>
     </form>
   );

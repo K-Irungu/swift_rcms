@@ -24,7 +24,7 @@ export const emailService = {
       <div style="font-family:sans-serif;max-width:480px;margin:auto">
         <h2>Your verification code</h2>
         <p style="font-size:32px;font-weight:bold;letter-spacing:8px">${otp}</p>
-        <p>This code expires in <strong>1 minute</strong>. Do not share it with anyone.</p>
+        <p>This code expires in <strong>5 minutes</strong>. Do not share it with anyone.</p>
       </div>
     `;
     return this.send(to, "Your OTP Code", html);

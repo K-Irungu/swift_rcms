@@ -5,15 +5,24 @@ import { validate } from "@/lib/middleware/validate";
 import { authService } from "@/lib/services/auth.service";
 import { successResponse } from "@/lib/utils/ApiResponse";
 
-const requestOtpSchema = z.object({
-  fullName: z.string().min(2),
-  email: z.string().email(),
+// ─── Validation Schema ────────────────────────────────────────────────────────
+
+const schema = z.object({
+  fullName:    z.string().min(2),
+  email:       z.string().email(),
   phoneNumber: z.string().min(10),
 });
 
+// ─── POST /api/auth/register ──────────────────────────────────────────────────
+
 export const POST = asyncHandler(async (req: NextRequest) => {
-  const body = await req.json();
-  const input = validate(requestOtpSchema, body);
+  // Step 1: Validate request body
+  const body  = await req.json();
+  const input = validate(schema, body);
+
+  // Step 2: Generate OTP and send via SMS and email
   await authService.sendRegistrationOtp(input);
+
+  // Step 3: Return success response
   return successResponse(null, "OTP sent successfully", 200);
 });
