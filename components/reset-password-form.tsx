@@ -1,4 +1,3 @@
-// reset-password-form.tsx
 "use client";
 
 import { cn } from "@/lib/utils";
@@ -8,48 +7,78 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import toast from "react-hot-toast";
-import { useRouter } from "next/navigation";
-import { getPasswordStrength, type StrengthResult } from "@/lib/password-strength";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { getPasswordStrength } from "@/lib/password-strength";
 
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function ResetPasswordForm({ className, ...props }: React.ComponentProps<"form">) {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading]       = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [password, setPassword] = useState("");
-  const router = useRouter();
+  const [password, setPassword]         = useState("");
+
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+
+  // Email is passed forward from the verify-otp page
+  const email = searchParams.get("email") || "";
 
   const strength = getPasswordStrength(password);
 
-  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
+  // Submits the new password to the API and redirects to login on success
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // TODO: replace with resetPassword(password)
+      // Step 1: Send new password and email to the API
+      const res = await fetch("/api/auth/reset-password", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ password, email }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to reset password");
+      }
+
+      // Step 2: Redirect to login on success
       toast.success("Password reset successfully. Please log in.");
       router.push("/auth/login");
-    } catch (error) {
-      toast.error("Failed to reset password. Please try again.");
-      console.error(error);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to reset password. Please try again.";
+      toast.error(message);
+      setPassword("");
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ─── Render ───────────────────────────────────────────────────────────────
+
   return (
     <form className={cn("flex flex-col gap-5", className)} onSubmit={handleSubmit} {...props}>
       <FieldGroup>
+
         {/* Header */}
         <div className="flex flex-col items-start gap-4 text-left">
-          <a href="/auth/verify-otp?mode=reset" className="flex items-center gap-2 text-sm text-[#B0BDD0] hover:text-white transition-colors">
+          <Link
+            href={`/auth/verify-otp?mode=reset&email=${encodeURIComponent(email)}`}
+            className="flex items-center gap-2 text-sm text-[#B0BDD0] hover:text-white transition-colors"
+          >
             <ArrowLeft className="w-4 h-4" />
             Back
-          </a>
+          </Link>
           <h1 className="text-3xl font-bold text-white">Reset Password</h1>
-          <p className="text-base text-[#B0BDD0]">Choose a new strong password for your account</p>
+          <p className="text-base text-[#B0BDD0]">
+            Choose a new strong password for your account
+          </p>
         </div>
 
-        {/* Field */}
+        {/* Password input with show/hide toggle */}
         <Field>
           <div className="relative">
             <Input
@@ -71,6 +100,7 @@ export function ResetPasswordForm({ className, ...props }: React.ComponentProps<
             </button>
           </div>
 
+          {/* Password strength indicator — only shown once the user starts typing */}
           {password.length > 0 && (
             <div className="flex flex-col gap-2 mt-2">
               <div className="flex gap-1">
@@ -101,7 +131,7 @@ export function ResetPasswordForm({ className, ...props }: React.ComponentProps<
           <Button
             type="submit"
             disabled={isLoading}
-            className="bg-[#2D64C8] hover:bg-[#2D64C8]/90 hover:cursor-pointer h-11 font-semibold text-sm"
+            className="w-full bg-[#2D64C8] hover:bg-[#2D64C8]/90 hover:cursor-pointer h-11 font-semibold text-sm"
           >
             {isLoading ? (
               <>
@@ -113,6 +143,7 @@ export function ResetPasswordForm({ className, ...props }: React.ComponentProps<
             )}
           </Button>
         </Field>
+
       </FieldGroup>
     </form>
   );

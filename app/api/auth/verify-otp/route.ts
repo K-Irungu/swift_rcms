@@ -9,8 +9,8 @@ import { hashOtp } from "@/lib/utils/otp";
 
 const schema = z.object({
   otp: z.string().length(6, "OTP must be 6 digits"),
-  phone: z.string().min(1, "Phone is required"),
   email: z.string().email("Valid email is required"),
+  phone: z.string().optional(),
   mode: z.enum(["register", "login", "reset"]),
 });
 
@@ -18,8 +18,17 @@ const schema = z.object({
 
 interface StoredOtp {
   otpHash: string;
-  payload: { fullName: string; email: string; phoneNumber: string };
   attempts: number;
+  payload?: { fullName: string; email: string; phoneNumber: string };
+  userId?: string;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getOtpKey(mode: string, email: string, phone?: string): string {
+  if (mode === "register") return `otp:register:${phone}:${email}`;
+  if (mode === "reset") return `otp:reset:${email}`;
+  return `otp:${mode}:${email}`;
 }
 
 // ─── POST /api/auth/verify-otp ────────────────────────────────────────────────
@@ -32,9 +41,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { otp, phone, email, mode } = validate(schema, body);
 
-    // Step 2: Look up the OTP entry in Redis
-    // TODO: key prefix will vary by mode when login/reset flows are added
-    const key = `otp:register:${phone}:${email}`;
+    // Step 2: Look up the OTP entry in Redis based on mode
+    const key = getOtpKey(mode, email, phone);
     const raw = await redis.get(key);
 
     if (!raw) {
@@ -55,7 +63,6 @@ export async function POST(req: NextRequest) {
     // Step 4: Hash the incoming OTP and compare against the stored hash
     if (stored.otpHash !== hashOtp(otp)) {
       const ttl = await redis.ttl(key);
-
       await redis.set(
         key,
         JSON.stringify({ ...stored, attempts: stored.attempts + 1 }),
@@ -63,19 +70,28 @@ export async function POST(req: NextRequest) {
       );
       throw new ApiError(400, "Incorrect OTP. Please try again.");
     }
+
     // Step 5: OTP is valid — delete it so it cannot be reused
     await redis.del(key);
 
-    // Step 6: Store a verified session so the next step can complete registration
+    // Step 6: Store verified session based on mode
     if (mode === "register") {
       await redis.set(
         `verified:register:${phone}:${email}`,
         JSON.stringify({
           phone,
-          email: stored.payload.email,
-          fullName: stored.payload.fullName,
+          email: stored.payload?.email,
+          fullName: stored.payload?.fullName,
         }),
-        { EX: 600 }, // 10 minutes to complete registration
+        { EX: 600 },
+      );
+    }
+
+    if (mode === "reset") {
+      await redis.set(
+        `verified:reset:${email}`,
+        JSON.stringify({ email, userId: stored.userId }),
+        { EX: 600 }, // 10 minutes to complete password reset
       );
     }
 

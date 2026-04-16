@@ -186,7 +186,7 @@ export function RegisterForm({
           <span>Already have an account?</span>
           <Link
             href="/auth/login"
-            className="ml-auto text-sm text-[#2D64C8] hover:underline"
+            className="ml-auto text-sm text-[#2D64C8] hover:underline hover:text-[#2D64C8]!"
           >
             Log in
           </Link>
