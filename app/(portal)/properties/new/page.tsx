@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useCallback } from "react";
-import Link from "next/link";
+import { useState, useRef } from "react";
 import { StepIndicator } from "@/components/step-indicator";
 import {
   ArrowLeft,
@@ -11,12 +10,9 @@ import {
   Trash2,
   Check,
   Loader2,
-  User,
   MapPin,
-  Phone,
-  Mail,
-  MessageCircle,
   X,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,32 +24,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import toast from "react-hot-toast";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-type PropertyManager = {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-};
-
-type Contact = {
-  id: string;
-  name: string;
-  role: string;
-  phone: string;
-  email: string;
-  whatsapp: string;
-  isPrimary: boolean;
-};
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type Step1Data = {
-  managerId: string;
   propertyName: string;
   description: string;
+  coverPhoto: File | null;
 };
 
 type Step2Data = {
@@ -64,70 +42,96 @@ type Step2Data = {
   location: string;
 };
 
+type UnitType = {
+  id: string;
+  name: string;
+  count: string;
+  rentAmount: string;
+  depositAmount: string;
+};
+
 type Step3Data = {
-  contacts: Contact[];
+  unitTypes: UnitType[];
+};
+
+type Step4Data = {
+  amenities: string[];
+};
+
+type Step5Data = {
+  rentDueDay: string;
+  gracePeriodDays: string;
+  lateFeeType: "flat" | "percentage";
+  lateFeeValue: string;
+  paymentMethods: string[];
 };
 
 type FieldErrors<T> = Partial<Record<keyof T, string>>;
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
-const PROPERTY_MANAGERS: PropertyManager[] = [
-  {
-    id: "1",
-    name: "John Kamau",
-    email: "jkamau@swift.co.ke",
-    phone: "+254712345678",
-  },
-  {
-    id: "2",
-    name: "Grace Wanjiku",
-    email: "gwanjiku@swift.co.ke",
-    phone: "+254723456789",
-  },
-  {
-    id: "3",
-    name: "Peter Odhiambo",
-    email: "podhiambo@swift.co.ke",
-    phone: "+254734567890",
-  },
-  {
-    id: "4",
-    name: "Alice Njeri",
-    email: "anjeri@swift.co.ke",
-    phone: "+254745678901",
-  },
-];
-
-const ROLES = [
-  "Property Manager",
-  "Caretaker",
-  "Security",
-  "Maintenance",
-  "Agent",
-  "Other",
-];
-
 const COUNTRIES = ["Kenya", "Uganda", "Tanzania", "Rwanda", "Ethiopia"];
 
 const KENYA_COUNTIES = [
-  "Nairobi",
-  "Mombasa",
-  "Kisumu",
-  "Nakuru",
-  "Kiambu",
-  "Machakos",
-  "Kajiado",
-  "Murang'a",
-  "Nyeri",
-  "Meru",
-  "Embu",
-  "Kirinyaga",
+  "Nairobi", "Mombasa", "Kisumu", "Nakuru", "Kiambu",
+  "Machakos", "Kajiado", "Murang'a", "Nyeri", "Meru", "Embu", "Kirinyaga",
 ];
 
-// ─── Wizard steps config ──────────────────────────────────────────────────────
+const UNIT_TYPE_PRESETS = [
+  "Bedsitter", "Studio", "1 Bedroom", "2 Bedroom",
+  "3 Bedroom", "4 Bedroom", "Penthouse", "Shop", "Office",
+];
 
-// ─── Field wrapper ────────────────────────────────────────────────────────────
+const AMENITY_GROUPS = [
+  {
+    label: "Water",
+    items: ["Piped Water", "Borehole", "Water Tank / Reservoir"],
+  },
+  {
+    label: "Power",
+    items: ["Backup Generator", "Solar Power"],
+  },
+  {
+    label: "Security",
+    items: ["Security Guard", "CCTV", "Electric Fence", "Controlled Access / Gate"],
+  },
+  {
+    label: "Facilities",
+    items: ["Parking", "Covered Parking", "Gym", "Swimming Pool", "Lift / Elevator", "Rooftop Terrace"],
+  },
+  {
+    label: "Connectivity",
+    items: ["Fibre Internet"],
+  },
+  {
+    label: "Other",
+    items: ["Balcony", "Garden / Compound", "Children's Play Area"],
+  },
+];
+
+const PAYMENT_METHODS = ["M-Pesa", "Bank Transfer", "Cash", "Airtel Money", "Cheque"];
+
+// ─── Wizard steps ─────────────────────────────────────────────────────────────
+
+const WIZARD_STEPS = [
+  { number: 1, label: "Basic Details" },
+  { number: 2, label: "Location" },
+  { number: 3, label: "Units" },
+  { number: 4, label: "Amenities" },
+  { number: 5, label: "Billing" },
+];
+
+// ─── Shared helpers ───────────────────────────────────────────────────────────
+
+const inputCls = (error?: string) =>
+  `h-8 text-xs border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs${
+    error ? " border-red-400" : ""
+  }`;
+
+const selectTriggerCls = (error?: string) =>
+  `h-8 text-xs border-border rounded-md focus:ring-0 focus-visible:ring-0${
+    error ? " border-red-400" : ""
+  }`;
 
 function Field({
   label,
@@ -152,6 +156,30 @@ function Field({
   );
 }
 
+function Pill({
+  label,
+  selected,
+  onToggle,
+}: {
+  label: string;
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`text-xs px-3 py-1.5 rounded-full border transition-colors cursor-pointer select-none ${
+        selected
+          ? "bg-[#2D64C8] text-white border-[#2D64C8]"
+          : "bg-white text-muted-foreground border-border hover:border-[#2D64C8]/50"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
 // ─── Step 1: Basic Details ────────────────────────────────────────────────────
 
 function Step1({
@@ -163,6 +191,22 @@ function Step1({
   onChange: (d: Step1Data) => void;
   errors: FieldErrors<Step1Data>;
 }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const coverUrl = data.coverPhoto ? URL.createObjectURL(data.coverPhoto) : null;
+
+  const handleFile = (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5 MB.");
+      return;
+    }
+    onChange({ ...data, coverPhoto: file });
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -172,61 +216,70 @@ function Step1({
         </p>
       </div>
 
-      <Field label="Property Manager" required error={errors.managerId}>
-        <div className="flex items-center gap-1.5">
-          <Select
-            value={data.managerId}
-            onValueChange={(v) => onChange({ ...data, managerId: v })}
-          >
-            <SelectTrigger
-              className={`flex-1 h-8 text-xs border-border rounded-md focus:ring-0 focus-visible:ring-0 ${errors.managerId ? "border-red-400" : ""}`}
-            >
-              <SelectValue placeholder="Select a property manager" />
-            </SelectTrigger>
-            <SelectContent className="p-1 rounded-md">
-              {PROPERTY_MANAGERS.map((pm) => (
-                <SelectItem
-                  key={pm.id}
-                  value={pm.id}
-                  className="text-xs cursor-pointer rounded-sm"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-medium">{pm.name}</span>
-                    <span className="text-muted-foreground text-[11px]">
-                      {pm.email}
-                    </span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {data.managerId && (
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-8 shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
-              onClick={() => onChange({ ...data, managerId: "" })}
-              type="button"
-            >
-              <X className="size-3.5" />
-            </Button>
+      {/* Cover photo */}
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs font-medium text-foreground">Cover Photo</Label>
+        <div
+          className="relative rounded-lg border border-dashed border-border bg-muted/30 h-36 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-muted/50 transition-colors overflow-hidden"
+          onClick={() => fileRef.current?.click()}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            handleFile(e.dataTransfer.files[0]);
+          }}
+        >
+          {coverUrl ? (
+            <>
+              <img
+                src={coverUrl}
+                alt="Cover preview"
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              <button
+                type="button"
+                className="absolute top-2 right-2 size-6 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 z-10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onChange({ ...data, coverPhoto: null });
+                }}
+              >
+                <X className="size-3" />
+              </button>
+            </>
+          ) : (
+            <>
+              <Upload className="size-4 text-muted-foreground/50" />
+              <p className="text-xs text-muted-foreground text-center">
+                Drag & drop or{" "}
+                <span className="text-[#2D64C8] font-medium">browse</span>
+              </p>
+              <p className="text-[11px] text-muted-foreground/60">
+                PNG, JPG — up to 5 MB
+              </p>
+            </>
           )}
         </div>
-      </Field>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => handleFile(e.target.files?.[0])}
+        />
+      </div>
 
       <Field label="Property Name" required error={errors.propertyName}>
         <Input
-          className={`h-8 text-xs border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs ${errors.propertyName ? "border-red-400" : ""}`}
+          className={inputCls(errors.propertyName)}
           placeholder="e.g. Ridgeways Apartments"
           value={data.propertyName}
           onChange={(e) => onChange({ ...data, propertyName: e.target.value })}
         />
       </Field>
 
-      <Field label="Description" error={errors.description}>
+      <Field label="Description">
         <textarea
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-0 resize-none min-h-[100px] placeholder:text-muted-foreground placeholder:text-xs"
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-0 resize-none min-h-[80px] placeholder:text-muted-foreground placeholder:text-xs"
           placeholder="Brief description of the property (optional)"
           value={data.description}
           onChange={(e) => onChange({ ...data, description: e.target.value })}
@@ -258,12 +311,10 @@ function Step2({
 
       <Field label="Physical Address" required error={errors.physicalAddress}>
         <Input
-          className={`h-8 text-xs border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs ${errors.physicalAddress ? "border-red-400" : ""}`}
+          className={inputCls(errors.physicalAddress)}
           placeholder="e.g. 14 Ridgeways Close, off Kiambu Road"
           value={data.physicalAddress}
-          onChange={(e) =>
-            onChange({ ...data, physicalAddress: e.target.value })
-          }
+          onChange={(e) => onChange({ ...data, physicalAddress: e.target.value })}
         />
       </Field>
 
@@ -271,20 +322,14 @@ function Step2({
         <Field label="Country" required error={errors.country}>
           <Select
             value={data.country}
-            onValueChange={(v) => onChange({ ...data, country: v })}
+            onValueChange={(v) => onChange({ ...data, country: v, county: "" })}
           >
-            <SelectTrigger
-              className={`h-8 text-xs border-border rounded-md focus:ring-0 focus-visible:ring-0 ${errors.country ? "border-red-400" : ""}`}
-            >
+            <SelectTrigger className={selectTriggerCls(errors.country)}>
               <SelectValue placeholder="Select country" />
             </SelectTrigger>
             <SelectContent className="p-1 rounded-md">
               {COUNTRIES.map((c) => (
-                <SelectItem
-                  key={c}
-                  value={c}
-                  className="text-xs cursor-pointer rounded-sm"
-                >
+                <SelectItem key={c} value={c} className="text-xs cursor-pointer rounded-sm">
                   {c}
                 </SelectItem>
               ))}
@@ -292,24 +337,18 @@ function Step2({
           </Select>
         </Field>
 
-        <Field label="County" required error={errors.county}>
+        <Field label="County / State" required error={errors.county}>
           {data.country === "Kenya" ? (
             <Select
               value={data.county}
               onValueChange={(v) => onChange({ ...data, county: v })}
             >
-              <SelectTrigger
-                className={`h-8 text-xs border-border rounded-md focus:ring-0 focus-visible:ring-0 ${errors.county ? "border-red-400" : ""}`}
-              >
+              <SelectTrigger className={selectTriggerCls(errors.county)}>
                 <SelectValue placeholder="Select county" />
               </SelectTrigger>
               <SelectContent className="p-1 rounded-md">
                 {KENYA_COUNTIES.map((c) => (
-                  <SelectItem
-                    key={c}
-                    value={c}
-                    className="text-xs cursor-pointer rounded-sm"
-                  >
+                  <SelectItem key={c} value={c} className="text-xs cursor-pointer rounded-sm">
                     {c}
                   </SelectItem>
                 ))}
@@ -317,7 +356,7 @@ function Step2({
             </Select>
           ) : (
             <Input
-              className={`h-8 text-xs border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs ${errors.county ? "border-red-400" : ""}`}
+              className={inputCls(errors.county)}
               placeholder="County / State / Province"
               value={data.county}
               onChange={(e) => onChange({ ...data, county: e.target.value })}
@@ -327,19 +366,19 @@ function Step2({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="City" required error={errors.city}>
+        <Field label="City / Town" required error={errors.city}>
           <Input
-            className={`h-8 text-xs border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs ${errors.city ? "border-red-400" : ""}`}
+            className={inputCls(errors.city)}
             placeholder="e.g. Nairobi"
             value={data.city}
             onChange={(e) => onChange({ ...data, city: e.target.value })}
           />
         </Field>
 
-        <Field label="Location / Neighbourhood" error={errors.location}>
+        <Field label="Neighbourhood">
           <Input
-            className="h-8 text-xs border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs"
-            placeholder="e.g. Ridgeways, Westlands"
+            className={inputCls()}
+            placeholder="e.g. Westlands, Kilimani"
             value={data.location}
             onChange={(e) => onChange({ ...data, location: e.target.value })}
           />
@@ -347,144 +386,145 @@ function Step2({
       </div>
 
       {/* Map placeholder — v2 */}
-      <div className="rounded-lg border border-dashed border-border bg-muted/30 h-40 flex flex-col items-center justify-center gap-2">
+      <div className="rounded-lg border border-dashed border-border bg-muted/30 h-36 flex flex-col items-center justify-center gap-2">
         <MapPin className="size-4 text-muted-foreground/50" />
-        <p className="text-xs text-muted-foreground">
-          Interactive map coming in v2
-        </p>
+        <p className="text-xs text-muted-foreground">Interactive map coming in v2</p>
       </div>
     </div>
   );
 }
 
-// ─── Step 3: Contacts ─────────────────────────────────────────────────────────
+// ─── Step 3: Unit Configuration ───────────────────────────────────────────────
 
-function ContactRow({
-  contact,
+function UnitTypeRow({
+  unit,
   onChange,
   onRemove,
   canRemove,
 }: {
-  contact: Contact;
-  onChange: (c: Contact) => void;
+  unit: UnitType;
+  onChange: (u: UnitType) => void;
   onRemove: () => void;
   canRemove: boolean;
 }) {
+  const isPreset = UNIT_TYPE_PRESETS.includes(unit.name);
+  const [custom, setCustom] = useState(!isPreset && unit.name !== "");
+
+  const handleSelectChange = (v: string) => {
+    if (v === "__custom__") {
+      setCustom(true);
+      onChange({ ...unit, name: "" });
+    } else {
+      setCustom(false);
+      onChange({ ...unit, name: v });
+    }
+  };
+
   return (
-    <div className="rounded-lg border bg-white p-4 flex flex-col gap-3">
+    <div className="rounded-lg border bg-white p-3 flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        {contact.isPrimary ? (
-          <Badge
-            variant="outline"
-            className="text-xs font-semibold bg-[#2D64C8]/5 text-[#2D64C8] border-[#2D64C8]/20"
-          >
-            Property Manager
-          </Badge>
-        ) : (
-          <span className="text-xs font-medium text-muted-foreground">
-            Contact
-          </span>
-        )}
+        <span className="text-xs font-medium text-foreground">Unit Type</span>
         {canRemove && (
           <Button
             variant="ghost"
             size="icon"
             className="size-7 text-muted-foreground hover:text-red-500 hover:bg-red-50 cursor-pointer"
             onClick={onRemove}
+            type="button"
           >
             <Trash2 className="size-3.5" />
           </Button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
+      <div className="grid grid-cols-2 gap-3">
+        {/* Type name */}
+        <div className="col-span-2 flex flex-col gap-1.5">
           <Label className="text-xs font-medium text-foreground">
-            Name <span className="text-red-500">*</span>
+            Type <span className="text-red-500">*</span>
           </Label>
-          <div className="relative">
-            <User className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
-            <Input
-              className="h-8 text-xs pl-7 border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs"
-              placeholder="Full name"
-              value={contact.name}
-              onChange={(e) => onChange({ ...contact, name: e.target.value })}
-              disabled={contact.isPrimary}
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-xs font-medium text-foreground">
-            Role <span className="text-red-500">*</span>
-          </Label>
-          <Select
-            value={contact.role}
-            onValueChange={(v) => onChange({ ...contact, role: v })}
-            disabled={contact.isPrimary}
-          >
-            <SelectTrigger className="h-8 text-xs border-border rounded-md focus:ring-0 focus-visible:ring-0">
-              <SelectValue placeholder="Select role" />
-            </SelectTrigger>
-            <SelectContent className="p-1 rounded-md">
-              {ROLES.map((r) => (
-                <SelectItem
-                  key={r}
-                  value={r}
-                  className="text-xs cursor-pointer rounded-sm"
-                >
-                  {r}
+          {!custom ? (
+            <Select
+              value={unit.name || ""}
+              onValueChange={handleSelectChange}
+            >
+              <SelectTrigger className="h-8 text-xs border-border rounded-md focus:ring-0 focus-visible:ring-0">
+                <SelectValue placeholder="Select unit type" />
+              </SelectTrigger>
+              <SelectContent className="p-1 rounded-md">
+                {UNIT_TYPE_PRESETS.map((p) => (
+                  <SelectItem key={p} value={p} className="text-xs cursor-pointer rounded-sm">
+                    {p}
+                  </SelectItem>
+                ))}
+                <SelectItem value="__custom__" className="text-xs cursor-pointer rounded-sm text-[#2D64C8]">
+                  Custom…
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <Input
+                className="h-8 text-xs border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs flex-1"
+                placeholder="e.g. Garden Cottage"
+                value={unit.name}
+                onChange={(e) => onChange({ ...unit, name: e.target.value })}
+                autoFocus
+              />
+              <button
+                type="button"
+                className="text-[11px] text-[#2D64C8] hover:underline whitespace-nowrap"
+                onClick={() => { setCustom(false); onChange({ ...unit, name: "" }); }}
+              >
+                Use preset
+              </button>
+            </div>
+          )}
         </div>
 
+        {/* Count */}
         <div className="flex flex-col gap-1.5">
           <Label className="text-xs font-medium text-foreground">
-            Phone <span className="text-red-500">*</span>
+            No. of Units <span className="text-red-500">*</span>
           </Label>
-          <div className="relative">
-            <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
-            <Input
-              className="h-8 text-xs pl-7 border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs"
-              placeholder="+254 7XX XXX XXX"
-              value={contact.phone}
-              onChange={(e) => onChange({ ...contact, phone: e.target.value })}
-              disabled={contact.isPrimary}
-            />
-          </div>
+          <Input
+            type="number"
+            min={1}
+            className="h-8 text-xs border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs"
+            placeholder="e.g. 12"
+            value={unit.count}
+            onChange={(e) => onChange({ ...unit, count: e.target.value })}
+          />
         </div>
 
+        {/* Default rent */}
         <div className="flex flex-col gap-1.5">
-          <Label className="text-xs font-medium text-foreground">Email</Label>
-          <div className="relative">
-            <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
-            <Input
-              className="h-8 text-xs pl-7 border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs"
-              placeholder="email@example.com"
-              value={contact.email}
-              onChange={(e) => onChange({ ...contact, email: e.target.value })}
-              disabled={contact.isPrimary}
-            />
-          </div>
+          <Label className="text-xs font-medium text-foreground">
+            Default Rent (KES) <span className="text-red-500">*</span>
+          </Label>
+          <Input
+            type="number"
+            min={0}
+            className="h-8 text-xs border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs"
+            placeholder="e.g. 25,000"
+            value={unit.rentAmount}
+            onChange={(e) => onChange({ ...unit, rentAmount: e.target.value })}
+          />
         </div>
 
-        <div className="flex flex-col gap-1.5 sm:col-span-2">
+        {/* Default deposit */}
+        <div className="col-span-2 flex flex-col gap-1.5">
           <Label className="text-xs font-medium text-foreground">
-            WhatsApp Number
+            Default Deposit (KES)
           </Label>
-          <div className="relative">
-            <MessageCircle className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
-            <Input
-              className="h-8 text-xs pl-7 border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs"
-              placeholder="+254 7XX XXX XXX (if different from phone)"
-              value={contact.whatsapp}
-              onChange={(e) =>
-                onChange({ ...contact, whatsapp: e.target.value })
-              }
-            />
-          </div>
+          <Input
+            type="number"
+            min={0}
+            className="h-8 text-xs border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs"
+            placeholder="e.g. 50,000 — leave blank if same as rent"
+            value={unit.depositAmount}
+            onChange={(e) => onChange({ ...unit, depositAmount: e.target.value })}
+          />
         </div>
       </div>
     </div>
@@ -494,59 +534,54 @@ function ContactRow({
 function Step3({
   data,
   onChange,
-  contactError,
+  error,
 }: {
   data: Step3Data;
   onChange: (d: Step3Data) => void;
-  contactError?: string;
+  error?: string;
 }) {
-  const addContact = () => {
+  const totalUnits = data.unitTypes.reduce(
+    (sum, u) => sum + (parseInt(u.count) || 0),
+    0,
+  );
+
+  const addUnitType = () => {
     onChange({
-      contacts: [
-        ...data.contacts,
-        {
-          id: crypto.randomUUID(),
-          name: "",
-          role: "",
-          phone: "",
-          email: "",
-          whatsapp: "",
-          isPrimary: false,
-        },
+      unitTypes: [
+        ...data.unitTypes,
+        { id: crypto.randomUUID(), name: "", count: "", rentAmount: "", depositAmount: "" },
       ],
     });
   };
 
-  const updateContact = (id: string, updated: Contact) => {
-    onChange({
-      contacts: data.contacts.map((c) => (c.id === id ? updated : c)),
-    });
+  const updateUnitType = (id: string, updated: UnitType) => {
+    onChange({ unitTypes: data.unitTypes.map((u) => (u.id === id ? updated : u)) });
   };
 
-  const removeContact = (id: string) => {
-    onChange({ contacts: data.contacts.filter((c) => c.id !== id) });
+  const removeUnitType = (id: string) => {
+    onChange({ unitTypes: data.unitTypes.filter((u) => u.id !== id) });
   };
 
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="text-xs font-semibold text-foreground">Contacts</h2>
+        <h2 className="text-xs font-semibold text-foreground">Unit Configuration</h2>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Add contacts for this property. The property manager has been
-          pre-filled.
+          Define the unit types in this property. Individual units can be fine-tuned after
+          the property is created.
         </p>
       </div>
 
-      {contactError && <p className="text-xs text-red-500">{contactError}</p>}
+      {error && <p className="text-xs text-red-500">{error}</p>}
 
       <div className="flex flex-col gap-3">
-        {data.contacts.map((contact) => (
-          <ContactRow
-            key={contact.id}
-            contact={contact}
-            onChange={(updated) => updateContact(contact.id, updated)}
-            onRemove={() => removeContact(contact.id)}
-            canRemove={!contact.isPrimary}
+        {data.unitTypes.map((unit) => (
+          <UnitTypeRow
+            key={unit.id}
+            unit={unit}
+            onChange={(u) => updateUnitType(unit.id, u)}
+            onRemove={() => removeUnitType(unit.id)}
+            canRemove={data.unitTypes.length > 1}
           />
         ))}
       </div>
@@ -554,10 +589,191 @@ function Step3({
       <Button
         variant="outline"
         className="gap-1.5 text-xs h-8 w-full border-dashed hover:bg-white cursor-pointer"
-        onClick={addContact}
+        onClick={addUnitType}
+        type="button"
       >
-        <Plus className="size-3.5" /> Add Contact
+        <Plus className="size-3.5" /> Add Unit Type
       </Button>
+
+      {totalUnits > 0 && (
+        <div className="rounded-md bg-muted/40 border border-border px-3 py-2 flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">Total units across all types</span>
+          <span className="text-xs font-semibold text-foreground">{totalUnits}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Step 4: Amenities ────────────────────────────────────────────────────────
+
+function Step4({
+  data,
+  onChange,
+}: {
+  data: Step4Data;
+  onChange: (d: Step4Data) => void;
+}) {
+  const toggle = (item: string) => {
+    const next = data.amenities.includes(item)
+      ? data.amenities.filter((a) => a !== item)
+      : [...data.amenities, item];
+    onChange({ amenities: next });
+  };
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div>
+        <h2 className="text-xs font-semibold text-foreground">Amenities & Features</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Select what this property offers. You can update these at any time.
+        </p>
+      </div>
+
+      {AMENITY_GROUPS.map((group) => (
+        <div key={group.label} className="flex flex-col gap-2">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+            {group.label}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {group.items.map((item) => (
+              <Pill
+                key={item}
+                label={item}
+                selected={data.amenities.includes(item)}
+                onToggle={() => toggle(item)}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {data.amenities.length > 0 && (
+        <div className="rounded-md bg-muted/40 border border-border px-3 py-2 flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">Selected</span>
+          <span className="text-xs font-semibold text-foreground">
+            {data.amenities.length}{" "}
+            {data.amenities.length === 1 ? "amenity" : "amenities"}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Step 5: Payment & Billing ────────────────────────────────────────────────
+
+function Step5({
+  data,
+  onChange,
+  errors,
+}: {
+  data: Step5Data;
+  onChange: (d: Step5Data) => void;
+  errors: FieldErrors<Step5Data>;
+}) {
+  const toggleMethod = (method: string) => {
+    const next = data.paymentMethods.includes(method)
+      ? data.paymentMethods.filter((m) => m !== method)
+      : [...data.paymentMethods, method];
+    onChange({ ...data, paymentMethods: next });
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-xs font-semibold text-foreground">Payment & Billing</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Set the billing rules that apply to all units in this property.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Field label="Rent Due Day" required error={errors.rentDueDay}>
+          <div className="relative">
+            <Input
+              type="number"
+              min={1}
+              max={28}
+              className={inputCls(errors.rentDueDay)}
+              placeholder="1"
+              value={data.rentDueDay}
+              onChange={(e) => onChange({ ...data, rentDueDay: e.target.value })}
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground pointer-events-none">
+              of month
+            </span>
+          </div>
+        </Field>
+
+        <Field label="Grace Period" required error={errors.gracePeriodDays}>
+          <div className="relative">
+            <Input
+              type="number"
+              min={0}
+              max={30}
+              className={inputCls(errors.gracePeriodDays)}
+              placeholder="5"
+              value={data.gracePeriodDays}
+              onChange={(e) => onChange({ ...data, gracePeriodDays: e.target.value })}
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground pointer-events-none">
+              days
+            </span>
+          </div>
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Field label="Late Fee Type" required error={errors.lateFeeType}>
+          <Select
+            value={data.lateFeeType}
+            onValueChange={(v: "flat" | "percentage") =>
+              onChange({ ...data, lateFeeType: v })
+            }
+          >
+            <SelectTrigger className={selectTriggerCls(errors.lateFeeType)}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="p-1 rounded-md">
+              <SelectItem value="flat" className="text-xs cursor-pointer rounded-sm">
+                Flat Amount (KES)
+              </SelectItem>
+              <SelectItem value="percentage" className="text-xs cursor-pointer rounded-sm">
+                Percentage of Rent (%)
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+
+        <Field
+          label={data.lateFeeType === "flat" ? "Late Fee Amount (KES)" : "Late Fee (%)"}
+          required
+          error={errors.lateFeeValue}
+        >
+          <Input
+            type="number"
+            min={0}
+            className={inputCls(errors.lateFeeValue)}
+            placeholder={data.lateFeeType === "flat" ? "e.g. 500" : "e.g. 5"}
+            value={data.lateFeeValue}
+            onChange={(e) => onChange({ ...data, lateFeeValue: e.target.value })}
+          />
+        </Field>
+      </div>
+
+      <Field label="Accepted Payment Methods" required error={errors.paymentMethods}>
+        <div className="flex flex-wrap gap-2 mt-0.5">
+          {PAYMENT_METHODS.map((method) => (
+            <Pill
+              key={method}
+              label={method}
+              selected={data.paymentMethods.includes(method)}
+              onToggle={() => toggleMethod(method)}
+            />
+          ))}
+        </div>
+      </Field>
     </div>
   );
 }
@@ -566,16 +782,13 @@ function Step3({
 
 function validateStep1(data: Step1Data): FieldErrors<Step1Data> {
   const errors: FieldErrors<Step1Data> = {};
-  if (!data.managerId) errors.managerId = "Please select a property manager.";
-  if (!data.propertyName.trim())
-    errors.propertyName = "Property name is required.";
+  if (!data.propertyName.trim()) errors.propertyName = "Property name is required.";
   return errors;
 }
 
 function validateStep2(data: Step2Data): FieldErrors<Step2Data> {
   const errors: FieldErrors<Step2Data> = {};
-  if (!data.physicalAddress.trim())
-    errors.physicalAddress = "Physical address is required.";
+  if (!data.physicalAddress.trim()) errors.physicalAddress = "Physical address is required.";
   if (!data.country) errors.country = "Please select a country.";
   if (!data.county.trim()) errors.county = "County is required.";
   if (!data.city.trim()) errors.city = "City is required.";
@@ -583,12 +796,30 @@ function validateStep2(data: Step2Data): FieldErrors<Step2Data> {
 }
 
 function validateStep3(data: Step3Data): string | undefined {
-  for (const c of data.contacts) {
-    if (!c.name.trim() || !c.role || !c.phone.trim()) {
-      return "Each contact must have a name, role, and phone number.";
-    }
+  if (data.unitTypes.length === 0) return "Add at least one unit type.";
+  for (const u of data.unitTypes) {
+    if (!u.name.trim()) return "Each unit type must have a name.";
+    if (!u.count || parseInt(u.count) < 1)
+      return "Each unit type must have at least 1 unit.";
+    if (!u.rentAmount || parseFloat(u.rentAmount) <= 0)
+      return "Each unit type must have a default rent amount.";
   }
   return undefined;
+}
+
+function validateStep5(data: Step5Data): FieldErrors<Step5Data> {
+  const errors: FieldErrors<Step5Data> = {};
+  const day = parseInt(data.rentDueDay);
+  if (!data.rentDueDay || isNaN(day) || day < 1 || day > 28)
+    errors.rentDueDay = "Enter a valid day between 1 and 28.";
+  const grace = parseInt(data.gracePeriodDays);
+  if (data.gracePeriodDays === "" || isNaN(grace) || grace < 0)
+    errors.gracePeriodDays = "Enter a valid grace period (0 or more days).";
+  if (!data.lateFeeValue || parseFloat(data.lateFeeValue) < 0)
+    errors.lateFeeValue = "Enter a valid late fee amount.";
+  if (data.paymentMethods.length === 0)
+    errors.paymentMethods = "Select at least one payment method.";
+  return errors;
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
@@ -598,9 +829,9 @@ export default function NewPropertyPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [step1, setStep1] = useState<Step1Data>({
-    managerId: "",
     propertyName: "",
     description: "",
+    coverPhoto: null,
   });
   const [step2, setStep2] = useState<Step2Data>({
     physicalAddress: "",
@@ -609,62 +840,53 @@ export default function NewPropertyPage() {
     city: "",
     location: "",
   });
-  const [step3, setStep3] = useState<Step3Data>({ contacts: [] });
+  const [step3, setStep3] = useState<Step3Data>({
+    unitTypes: [
+      { id: crypto.randomUUID(), name: "", count: "", rentAmount: "", depositAmount: "" },
+    ],
+  });
+  const [step4, setStep4] = useState<Step4Data>({ amenities: [] });
+  const [step5, setStep5] = useState<Step5Data>({
+    rentDueDay: "1",
+    gracePeriodDays: "5",
+    lateFeeType: "flat",
+    lateFeeValue: "",
+    paymentMethods: [],
+  });
 
   const [errors1, setErrors1] = useState<FieldErrors<Step1Data>>({});
   const [errors2, setErrors2] = useState<FieldErrors<Step2Data>>({});
-  const [contactError, setContactError] = useState<string | undefined>();
-
-  const buildContactsForStep3 = useCallback(
-    (managerId: string, existingContacts: Contact[]): Contact[] => {
-      const manager = PROPERTY_MANAGERS.find((pm) => pm.id === managerId);
-      const primaryContact: Contact = {
-        id: "primary",
-        name: manager?.name ?? "",
-        role: "Property Manager",
-        phone: manager?.phone ?? "",
-        email: manager?.email ?? "",
-        whatsapp: "",
-        isPrimary: true,
-      };
-      const rest = existingContacts.filter((c) => !c.isPrimary);
-      return [primaryContact, ...rest];
-    },
-    [],
-  );
+  const [error3, setError3]   = useState<string | undefined>();
+  const [errors5, setErrors5] = useState<FieldErrors<Step5Data>>({});
 
   const handleNext = () => {
     if (step === 1) {
       const errs = validateStep1(step1);
-      if (Object.keys(errs).length) {
-        setErrors1(errs);
-        return;
-      }
+      if (Object.keys(errs).length) { setErrors1(errs); return; }
       setErrors1({});
-      setStep3((prev) => ({
-        contacts: buildContactsForStep3(step1.managerId, prev.contacts),
-      }));
       setStep(2);
     } else if (step === 2) {
       const errs = validateStep2(step2);
-      if (Object.keys(errs).length) {
-        setErrors2(errs);
-        return;
-      }
+      if (Object.keys(errs).length) { setErrors2(errs); return; }
       setErrors2({});
       setStep(3);
+    } else if (step === 3) {
+      const err = validateStep3(step3);
+      if (err) { setError3(err); return; }
+      setError3(undefined);
+      setStep(4);
+    } else if (step === 4) {
+      // Amenities are optional — move straight through
+      setStep(5);
     }
   };
 
   const handlePrev = () => setStep((s) => Math.max(1, s - 1));
 
   const handleSubmit = async () => {
-    const err = validateStep3(step3);
-    if (err) {
-      setContactError(err);
-      return;
-    }
-    setContactError(undefined);
+    const errs = validateStep5(step5);
+    if (Object.keys(errs).length) { setErrors5(errs); return; }
+    setErrors5({});
     setSubmitting(true);
 
     // TODO: replace with real API call
@@ -672,57 +894,23 @@ export default function NewPropertyPage() {
 
     toast.success("Property created successfully!");
     setSubmitting(false);
-
     // TODO: router.push(`/portal/properties/${newId}`)
   };
 
   return (
     <div className="flex flex-col bg-[#F0F4F8] min-h-full w-full">
       <div className="p-4 flex flex-col gap-4 w-full">
-        {/* Header */}
-        {/* <div className="flex items-center gap-3">
-          <Link href="/portal/properties">
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-8 shrink-0 cursor-pointer"
-            >
-              <ArrowLeft className="size-4" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-sm font-semibold text-foreground">
-              New Property
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Step {step} of {STEPS.length} —{" "}
-              {STEPS.find((s) => s.number === step)?.label}
-            </p>
-          </div>
-        </div> */}
+        <StepIndicator current={step} steps={WIZARD_STEPS} />
 
-        {/* Step indicator */}
-        <StepIndicator current={step} />
-
-        {/* Form card */}
         <div className="rounded-lg border bg-white p-4 flex flex-col gap-4">
-          {step === 1 && (
-            <Step1 data={step1} onChange={setStep1} errors={errors1} />
-          )}
-          {step === 2 && (
-            <Step2 data={step2} onChange={setStep2} errors={errors2} />
-          )}
-          {step === 3 && (
-            <Step3
-              data={step3}
-              onChange={setStep3}
-              contactError={contactError}
-            />
-          )}
-
+          {step === 1 && <Step1 data={step1} onChange={setStep1} errors={errors1} />}
+          {step === 2 && <Step2 data={step2} onChange={setStep2} errors={errors2} />}
+          {step === 3 && <Step3 data={step3} onChange={setStep3} error={error3} />}
+          {step === 4 && <Step4 data={step4} onChange={setStep4} />}
+          {step === 5 && <Step5 data={step5} onChange={setStep5} errors={errors5} />}
 
           {/* Navigation */}
-          <div className="flex items-center justify-between ">
+          <div className="flex items-center justify-between">
             <Button
               variant="outline"
               className="gap-1.5 text-xs h-8 px-3 cursor-pointer w-36"
@@ -732,7 +920,7 @@ export default function NewPropertyPage() {
               <ArrowLeft className="size-3.5" /> Previous
             </Button>
 
-            {step < 3 ? (
+            {step < WIZARD_STEPS.length ? (
               <Button
                 className="gap-1.5 text-xs font-semibold h-8 px-3 bg-[#2D64C8] hover:bg-[#2D64C8]/90 cursor-pointer w-36"
                 onClick={handleNext}
