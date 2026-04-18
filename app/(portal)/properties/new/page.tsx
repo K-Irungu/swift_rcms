@@ -57,19 +57,14 @@ type Step3Data = {
   unitTypes: UnitType[];
 };
 
-
-
 type Step4Data = {
   rentDueDay: string;
-  gracePeriodDays: string;
-  lateFeeType: "flat" | "percentage";
-  lateFeeValue: string;
   paymentMethods: string[];
 };
 
 type FieldErrors<T> = Partial<Record<keyof T, string>>;
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const COUNTRIES = ["Kenya", "Uganda", "Tanzania", "Rwanda", "Ethiopia"];
 
@@ -83,34 +78,7 @@ const UNIT_TYPE_PRESETS = [
   "3 Bedroom", "4 Bedroom", "Penthouse",
 ];
 
-const AMENITY_GROUPS = [
-  {
-    label: "Water",
-    items: ["Piped Water", "Borehole", "Water Tank / Reservoir"],
-  },
-  {
-    label: "Power",
-    items: ["Backup Generator", "Solar Power"],
-  },
-  {
-    label: "Security",
-    items: ["Security Guard", "CCTV", "Electric Fence", "Controlled Access / Gate"],
-  },
-  {
-    label: "Facilities",
-    items: ["Parking", "Covered Parking", "Gym", "Swimming Pool", "Lift / Elevator", "Rooftop Terrace"],
-  },
-  {
-    label: "Connectivity",
-    items: ["Fibre Internet"],
-  },
-  {
-    label: "Other",
-    items: ["Balcony", "Garden / Compound", "Children's Play Area"],
-  },
-];
-
-const PAYMENT_METHODS = ["M-Pesa", "Bank Transfer", "Cash", "Airtel Money", "Cheque"];
+const PAYMENT_METHODS = ["M-Pesa"];
 
 // ─── Wizard steps ─────────────────────────────────────────────────────────────
 
@@ -193,13 +161,11 @@ function Step1({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // useMemo so we don't create a new blob URL on every render
   const coverUrl = useMemo(
     () => (data.coverPhoto ? URL.createObjectURL(data.coverPhoto) : null),
     [data.coverPhoto],
   );
 
-  // Revoke the previous URL when the file changes or the component unmounts
   useEffect(() => {
     return () => { if (coverUrl) URL.revokeObjectURL(coverUrl); };
   }, [coverUrl]);
@@ -240,7 +206,6 @@ function Step1({
         >
           {coverUrl ? (
             <>
-              {/* Plain <img> is correct here — blob: URLs are local and need no optimisation */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={coverUrl}
@@ -301,8 +266,7 @@ function Step1({
   );
 }
 
-// ─── Map panner — imperatively pans/zooms when coordinates change ─────────────
-// Must be rendered inside <Map> so useMap() resolves correctly.
+// ─── Map panner ───────────────────────────────────────────────────────────────
 
 function MapPanner({
   coordinates,
@@ -314,7 +278,6 @@ function MapPanner({
 
   useEffect(() => {
     if (!map || !coordinates) return;
-    // Skip if coordinates haven't actually changed
     if (prev.current?.lat === coordinates.lat && prev.current?.lng === coordinates.lng) return;
     prev.current = coordinates;
     map.panTo(coordinates);
@@ -343,20 +306,15 @@ function Step2({
   onChange: (d: Step2Data) => void;
   errors: FieldErrors<Step2Data>;
 }) {
-  const [geocoding, setGeocoding]           = useState(false);
+  const [geocoding, setGeocoding]               = useState(false);
   const [reverseGeocoding, setReverseGeocoding] = useState(false);
   const [formattedAddress, setFormattedAddress] = useState<string | null>(null);
 
-  // Holds the latest `data` ref so debounce callback always reads fresh values
   const dataRef = useRef(data);
   useEffect(() => { dataRef.current = data; }, [data]);
 
-  // Debounce timer ref
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Shared forward geocoding ───────────────────────────────────────────────
-  // silent=true  → no toast on ZERO_RESULTS (used by auto-debounce)
-  // silent=false → show toasts (used by "Find on map" button)
   const runGeocode = React.useCallback(async (d: Step2Data, silent = false) => {
     const countryCode = COUNTRY_CODES[d.country];
 
@@ -371,8 +329,8 @@ function Step2({
       });
 
     const componentParts: string[] = [];
-    if (d.county)     componentParts.push(`administrative_area:${d.county}`);
-    if (countryCode)  componentParts.push(`country:${countryCode}`);
+    if (d.county)    componentParts.push(`administrative_area:${d.county}`);
+    if (countryCode) componentParts.push(`country:${countryCode}`);
 
     if (addressParts.length === 0 && componentParts.length === 0) return;
 
@@ -397,9 +355,7 @@ function Step2({
       }
 
       const { lat, lng } = json.results[0].geometry.location;
-      // Use latest data from ref so the closure doesn't capture a stale snapshot
       onChange({ ...dataRef.current, coordinates: { lat, lng } });
-      // Show Google's cleaned-up formatted address as confirmation
       setFormattedAddress(json.results[0].formatted_address ?? null);
     } catch {
       if (!silent) toast.error("Could not reach geocoding service.");
@@ -408,7 +364,6 @@ function Step2({
     }
   }, [onChange]);
 
-  // ── Reverse geocoding: coords → formatted address ──────────────────────────
   const reverseGeocode = React.useCallback(async (lat: number, lng: number) => {
     setReverseGeocoding(true);
     try {
@@ -424,9 +379,7 @@ function Step2({
     }
   }, []);
 
-  // ── Debounced auto-geocode when address fields change ─────────────────────
   useEffect(() => {
-    // Only auto-geocode when the three required address fields are filled
     const ready =
       data.physicalAddress.trim().length > 3 &&
       data.country.trim() !== "" &&
@@ -434,22 +387,18 @@ function Step2({
 
     if (!ready) return;
 
-    // Clear any existing timer
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    // Schedule silent geocode 800 ms after the user stops typing
     debounceRef.current = setTimeout(() => {
-      runGeocode(dataRef.current, true /* silent */);
+      runGeocode(dataRef.current, true);
     }, 800);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  // We intentionally only watch the three text fields that drive geocoding
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.physicalAddress, data.country, data.county, data.city, data.location]);
 
-  // ── Map interaction helpers ───────────────────────────────────────────────
   const handleMapClick = (coords: { lat: number; lng: number }) => {
     onChange({ ...data, coordinates: coords });
     reverseGeocode(coords.lat, coords.lng);
@@ -545,7 +494,6 @@ function Step2({
         </Field>
       </div>
 
-      {/* Interactive map */}
       <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
@@ -574,7 +522,7 @@ function Step2({
 
           <div className="rounded-lg overflow-hidden border border-border h-52">
             <Map
-              defaultCenter={{ lat: 1.2921, lng: 36.8219 }} // Nairobi
+              defaultCenter={{ lat: 1.2921, lng: 36.8219 }}
               defaultZoom={6}
               mapId="property-location-map"
               gestureHandling="greedy"
@@ -584,7 +532,6 @@ function Step2({
                 if (e.detail.latLng) handleMapClick(e.detail.latLng);
               }}
             >
-              {/* Imperatively pans to new coordinates without locking zoom */}
               <MapPanner coordinates={data.coordinates} />
 
               {data.coordinates && (
@@ -601,7 +548,6 @@ function Step2({
             </Map>
           </div>
 
-          {/* Coordinates + formatted address preview */}
           {data.coordinates && (
             <div className="flex flex-col gap-0.5">
               <p className="text-[11px] text-muted-foreground/70 font-mono">
@@ -669,7 +615,6 @@ function UnitTypeRow({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {/* Type name */}
         <div className="col-span-2 flex flex-col gap-1.5">
           <Label className="text-xs font-medium text-foreground">
             Type <span className="text-red-500">*</span>
@@ -716,7 +661,6 @@ function UnitTypeRow({
           )}
         </div>
 
-        {/* Count */}
         <div className="flex flex-col gap-1.5">
           <Label className="text-xs font-medium text-foreground">
             No. of Units <span className="text-red-500">*</span>
@@ -731,7 +675,6 @@ function UnitTypeRow({
           />
         </div>
 
-        {/* Default rent */}
         <div className="flex flex-col gap-1.5">
           <Label className="text-xs font-medium text-foreground">
             Default Rent (KES) <span className="text-red-500">*</span>
@@ -745,8 +688,6 @@ function UnitTypeRow({
             onChange={(e) => onChange({ ...unit, rentAmount: e.target.value })}
           />
         </div>
-
-     
       </div>
     </div>
   );
@@ -826,7 +767,6 @@ function Step3({
   );
 }
 
-
 // ─── Step 4: Payment & Billing ────────────────────────────────────────────────
 
 function Step4({
@@ -854,79 +794,22 @@ function Step4({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Rent Due Day" required error={errors.rentDueDay}>
-          <div className="relative">
-            <Input
-              type="number"
-              min={1}
-              max={28}
-              className={inputCls(errors.rentDueDay)}
-              placeholder="1"
-              value={data.rentDueDay}
-              onChange={(e) => onChange({ ...data, rentDueDay: e.target.value })}
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground pointer-events-none">
-              of month
-            </span>
-          </div>
-        </Field>
-
-        <Field label="Grace Period" required error={errors.gracePeriodDays}>
-          <div className="relative">
-            <Input
-              type="number"
-              min={0}
-              max={30}
-              className={inputCls(errors.gracePeriodDays)}
-              placeholder="5"
-              value={data.gracePeriodDays}
-              onChange={(e) => onChange({ ...data, gracePeriodDays: e.target.value })}
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground pointer-events-none">
-              days
-            </span>
-          </div>
-        </Field>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Late Fee Type" required error={errors.lateFeeType}>
-          <Select
-            value={data.lateFeeType}
-            onValueChange={(v: "flat" | "percentage") =>
-              onChange({ ...data, lateFeeType: v })
-            }
-          >
-            <SelectTrigger className={selectTriggerCls(errors.lateFeeType)}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="p-1 rounded-md">
-              <SelectItem value="flat" className="text-xs cursor-pointer rounded-sm">
-                Flat Amount (KES)
-              </SelectItem>
-              <SelectItem value="percentage" className="text-xs cursor-pointer rounded-sm">
-                Percentage of Rent (%)
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
-
-        <Field
-          label={data.lateFeeType === "flat" ? "Late Fee Amount (KES)" : "Late Fee (%)"}
-          required
-          error={errors.lateFeeValue}
-        >
+      <Field label="Rent Due Day" required error={errors.rentDueDay}>
+        <div className="relative">
           <Input
             type="number"
-            min={0}
-            className={inputCls(errors.lateFeeValue)}
-            placeholder={data.lateFeeType === "flat" ? "e.g. 500" : "e.g. 5"}
-            value={data.lateFeeValue}
-            onChange={(e) => onChange({ ...data, lateFeeValue: e.target.value })}
+            min={1}
+            max={28}
+            className={inputCls(errors.rentDueDay)}
+            placeholder="1"
+            value={data.rentDueDay}
+            onChange={(e) => onChange({ ...data, rentDueDay: e.target.value })}
           />
-        </Field>
-      </div>
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground pointer-events-none">
+            of month
+          </span>
+        </div>
+      </Field>
 
       <Field label="Accepted Payment Methods" required error={errors.paymentMethods}>
         <div className="flex flex-wrap gap-2 mt-0.5">
@@ -978,11 +861,6 @@ function validateStep4(data: Step4Data): FieldErrors<Step4Data> {
   const day = parseInt(data.rentDueDay);
   if (!data.rentDueDay || isNaN(day) || day < 1 || day > 28)
     errors.rentDueDay = "Enter a valid day between 1 and 28.";
-  const grace = parseInt(data.gracePeriodDays);
-  if (data.gracePeriodDays === "" || isNaN(grace) || grace < 0)
-    errors.gracePeriodDays = "Enter a valid grace period (0 or more days).";
-  if (!data.lateFeeValue || parseFloat(data.lateFeeValue) < 0)
-    errors.lateFeeValue = "Enter a valid late fee amount.";
   if (data.paymentMethods.length === 0)
     errors.paymentMethods = "Select at least one payment method.";
   return errors;
@@ -1013,12 +891,8 @@ export default function NewPropertyPage() {
       { id: crypto.randomUUID(), name: "", count: "", rentAmount: "", depositAmount: "" },
     ],
   });
-
   const [step4, setStep4] = useState<Step4Data>({
     rentDueDay: "1",
-    gracePeriodDays: "5",
-    lateFeeType: "flat",
-    lateFeeValue: "",
     paymentMethods: [],
   });
 
@@ -1043,9 +917,6 @@ export default function NewPropertyPage() {
       if (err) { setError3(err); return; }
       setError3(undefined);
       setStep(4);
-    } else if (step === 4) {
-      // Amenities are optional — move straight through
-      setStep(5);
     }
   };
 
@@ -1060,19 +931,16 @@ export default function NewPropertyPage() {
     try {
       const formData = new FormData();
 
-      // File goes in directly — FormData handles binary correctly
       if (step1.coverPhoto) {
         formData.append("coverPhoto", step1.coverPhoto);
       }
 
-      // Strip the File object before serializing step1
       formData.append("step1", JSON.stringify({
         propertyName: step1.propertyName,
         description:  step1.description,
       }));
       formData.append("step2", JSON.stringify(step2));
       formData.append("step3", JSON.stringify(step3));
-
       formData.append("step4", JSON.stringify(step4));
 
       const res = await fetch("/api/properties", {
@@ -1105,10 +973,8 @@ export default function NewPropertyPage() {
           {step === 1 && <Step1 data={step1} onChange={setStep1} errors={errors1} />}
           {step === 2 && <Step2 data={step2} onChange={setStep2} errors={errors2} />}
           {step === 3 && <Step3 data={step3} onChange={setStep3} error={error3} />}
-
           {step === 4 && <Step4 data={step4} onChange={setStep4} errors={errors4} />}
 
-          {/* Navigation */}
           <div className="flex items-center justify-between">
             <Button
               variant="outline"
