@@ -57,11 +57,9 @@ type Step3Data = {
   unitTypes: UnitType[];
 };
 
-type Step4Data = {
-  amenities: string[];
-};
 
-type Step5Data = {
+
+type Step4Data = {
   rentDueDay: string;
   gracePeriodDays: string;
   lateFeeType: "flat" | "percentage";
@@ -82,7 +80,7 @@ const KENYA_COUNTIES = [
 
 const UNIT_TYPE_PRESETS = [
   "Bedsitter", "Studio", "1 Bedroom", "2 Bedroom",
-  "3 Bedroom", "4 Bedroom", "Penthouse", "Shop", "Office",
+  "3 Bedroom", "4 Bedroom", "Penthouse",
 ];
 
 const AMENITY_GROUPS = [
@@ -120,8 +118,7 @@ const WIZARD_STEPS = [
   { number: 1, label: "Basic Details" },
   { number: 2, label: "Location" },
   { number: 3, label: "Units" },
-  { number: 4, label: "Amenities" },
-  { number: 5, label: "Billing" },
+  { number: 4, label: "Billing" },
 ];
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
@@ -749,20 +746,7 @@ function UnitTypeRow({
           />
         </div>
 
-        {/* Default deposit */}
-        <div className="col-span-2 flex flex-col gap-1.5">
-          <Label className="text-xs font-medium text-foreground">
-            Default Deposit (KES)
-          </Label>
-          <Input
-            type="number"
-            min={0}
-            className="h-8 text-xs border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs"
-            placeholder="e.g. 50,000 — leave blank if same as rent"
-            value={unit.depositAmount}
-            onChange={(e) => onChange({ ...unit, depositAmount: e.target.value })}
-          />
-        </div>
+     
       </div>
     </div>
   );
@@ -842,72 +826,17 @@ function Step3({
   );
 }
 
-// ─── Step 4: Amenities ────────────────────────────────────────────────────────
+
+// ─── Step 4: Payment & Billing ────────────────────────────────────────────────
 
 function Step4({
   data,
   onChange,
+  errors,
 }: {
   data: Step4Data;
   onChange: (d: Step4Data) => void;
-}) {
-  const toggle = (item: string) => {
-    const next = data.amenities.includes(item)
-      ? data.amenities.filter((a) => a !== item)
-      : [...data.amenities, item];
-    onChange({ amenities: next });
-  };
-
-  return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h2 className="text-xs font-semibold text-foreground">Amenities & Features</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Select what this property offers. You can update these at any time.
-        </p>
-      </div>
-
-      {AMENITY_GROUPS.map((group) => (
-        <div key={group.label} className="flex flex-col gap-2">
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-            {group.label}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {group.items.map((item) => (
-              <Pill
-                key={item}
-                label={item}
-                selected={data.amenities.includes(item)}
-                onToggle={() => toggle(item)}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
-
-      {data.amenities.length > 0 && (
-        <div className="rounded-md bg-muted/40 border border-border px-3 py-2 flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">Selected</span>
-          <span className="text-xs font-semibold text-foreground">
-            {data.amenities.length}{" "}
-            {data.amenities.length === 1 ? "amenity" : "amenities"}
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Step 5: Payment & Billing ────────────────────────────────────────────────
-
-function Step5({
-  data,
-  onChange,
-  errors,
-}: {
-  data: Step5Data;
-  onChange: (d: Step5Data) => void;
-  errors: FieldErrors<Step5Data>;
+  errors: FieldErrors<Step4Data>;
 }) {
   const toggleMethod = (method: string) => {
     const next = data.paymentMethods.includes(method)
@@ -1044,8 +973,8 @@ function validateStep3(data: Step3Data): string | undefined {
   return undefined;
 }
 
-function validateStep5(data: Step5Data): FieldErrors<Step5Data> {
-  const errors: FieldErrors<Step5Data> = {};
+function validateStep4(data: Step4Data): FieldErrors<Step4Data> {
+  const errors: FieldErrors<Step4Data> = {};
   const day = parseInt(data.rentDueDay);
   if (!data.rentDueDay || isNaN(day) || day < 1 || day > 28)
     errors.rentDueDay = "Enter a valid day between 1 and 28.";
@@ -1084,8 +1013,8 @@ export default function NewPropertyPage() {
       { id: crypto.randomUUID(), name: "", count: "", rentAmount: "", depositAmount: "" },
     ],
   });
-  const [step4, setStep4] = useState<Step4Data>({ amenities: [] });
-  const [step5, setStep5] = useState<Step5Data>({
+
+  const [step4, setStep4] = useState<Step4Data>({
     rentDueDay: "1",
     gracePeriodDays: "5",
     lateFeeType: "flat",
@@ -1096,7 +1025,7 @@ export default function NewPropertyPage() {
   const [errors1, setErrors1] = useState<FieldErrors<Step1Data>>({});
   const [errors2, setErrors2] = useState<FieldErrors<Step2Data>>({});
   const [error3, setError3]   = useState<string | undefined>();
-  const [errors5, setErrors5] = useState<FieldErrors<Step5Data>>({});
+  const [errors4, setErrors4] = useState<FieldErrors<Step4Data>>({});
 
   const handleNext = () => {
     if (step === 1) {
@@ -1123,9 +1052,9 @@ export default function NewPropertyPage() {
   const handlePrev = () => setStep((s) => Math.max(1, s - 1));
 
   const handleSubmit = async () => {
-    const errs = validateStep5(step5);
-    if (Object.keys(errs).length) { setErrors5(errs); return; }
-    setErrors5({});
+    const errs = validateStep4(step4);
+    if (Object.keys(errs).length) { setErrors4(errs); return; }
+    setErrors4({});
     setSubmitting(true);
 
     try {
@@ -1143,8 +1072,8 @@ export default function NewPropertyPage() {
       }));
       formData.append("step2", JSON.stringify(step2));
       formData.append("step3", JSON.stringify(step3));
+
       formData.append("step4", JSON.stringify(step4));
-      formData.append("step5", JSON.stringify(step5));
 
       const res = await fetch("/api/properties", {
         method: "POST",
@@ -1176,8 +1105,8 @@ export default function NewPropertyPage() {
           {step === 1 && <Step1 data={step1} onChange={setStep1} errors={errors1} />}
           {step === 2 && <Step2 data={step2} onChange={setStep2} errors={errors2} />}
           {step === 3 && <Step3 data={step3} onChange={setStep3} error={error3} />}
-          {step === 4 && <Step4 data={step4} onChange={setStep4} />}
-          {step === 5 && <Step5 data={step5} onChange={setStep5} errors={errors5} />}
+
+          {step === 4 && <Step4 data={step4} onChange={setStep4} errors={errors4} />}
 
           {/* Navigation */}
           <div className="flex items-center justify-between">
