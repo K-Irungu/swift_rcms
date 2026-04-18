@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { StepIndicator } from "@/components/step-indicator";
 import {
   ArrowLeft,
@@ -25,6 +26,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import toast from "react-hot-toast";
+import {
+  APIProvider,
+  Map,
+  AdvancedMarker,
+  useMap,
+} from "@vis.gl/react-google-maps";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +47,7 @@ type Step2Data = {
   county: string;
   city: string;
   location: string;
+  coordinates: { lat: number; lng: number } | null;
 };
 
 type UnitType = {
@@ -73,13 +81,30 @@ type FieldErrors<T> = Partial<Record<keyof T, string>>;
 const COUNTRIES = ["Kenya", "Uganda", "Tanzania", "Rwanda", "Ethiopia"];
 
 const KENYA_COUNTIES = [
-  "Nairobi", "Mombasa", "Kisumu", "Nakuru", "Kiambu",
-  "Machakos", "Kajiado", "Murang'a", "Nyeri", "Meru", "Embu", "Kirinyaga",
+  "Nairobi",
+  "Mombasa",
+  "Kisumu",
+  "Nakuru",
+  "Kiambu",
+  "Machakos",
+  "Kajiado",
+  "Murang'a",
+  "Nyeri",
+  "Meru",
+  "Embu",
+  "Kirinyaga",
 ];
 
 const UNIT_TYPE_PRESETS = [
-  "Bedsitter", "Studio", "1 Bedroom", "2 Bedroom",
-  "3 Bedroom", "4 Bedroom", "Penthouse", "Shop", "Office",
+  "Bedsitter",
+  "Studio",
+  "1 Bedroom",
+  "2 Bedroom",
+  "3 Bedroom",
+  "4 Bedroom",
+  "Penthouse",
+  "Shop",
+  "Office",
 ];
 
 const AMENITY_GROUPS = [
@@ -93,11 +118,23 @@ const AMENITY_GROUPS = [
   },
   {
     label: "Security",
-    items: ["Security Guard", "CCTV", "Electric Fence", "Controlled Access / Gate"],
+    items: [
+      "Security Guard",
+      "CCTV",
+      "Electric Fence",
+      "Controlled Access / Gate",
+    ],
   },
   {
     label: "Facilities",
-    items: ["Parking", "Covered Parking", "Gym", "Swimming Pool", "Lift / Elevator", "Rooftop Terrace"],
+    items: [
+      "Parking",
+      "Covered Parking",
+      "Gym",
+      "Swimming Pool",
+      "Lift / Elevator",
+      "Rooftop Terrace",
+    ],
   },
   {
     label: "Connectivity",
@@ -109,7 +146,13 @@ const AMENITY_GROUPS = [
   },
 ];
 
-const PAYMENT_METHODS = ["M-Pesa", "Bank Transfer", "Cash", "Airtel Money", "Cheque"];
+const PAYMENT_METHODS = [
+  "M-Pesa",
+  "Bank Transfer",
+  "Cash",
+  "Airtel Money",
+  "Cheque",
+];
 
 // ─── Wizard steps ─────────────────────────────────────────────────────────────
 
@@ -192,7 +235,19 @@ function Step1({
   errors: FieldErrors<Step1Data>;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const coverUrl = data.coverPhoto ? URL.createObjectURL(data.coverPhoto) : null;
+
+  // useMemo so we don't create a new blob URL on every render
+  const coverUrl = useMemo(
+    () => (data.coverPhoto ? URL.createObjectURL(data.coverPhoto) : null),
+    [data.coverPhoto],
+  );
+
+  // Revoke the previous URL when the file changes or the component unmounts
+  useEffect(() => {
+    return () => {
+      if (coverUrl) URL.revokeObjectURL(coverUrl);
+    };
+  }, [coverUrl]);
 
   const handleFile = (file: File | undefined) => {
     if (!file) return;
@@ -218,7 +273,9 @@ function Step1({
 
       {/* Cover photo */}
       <div className="flex flex-col gap-1.5">
-        <Label className="text-xs font-medium text-foreground">Cover Photo</Label>
+        <Label className="text-xs font-medium text-foreground">
+          Cover Photo
+        </Label>
         <div
           className="relative rounded-lg border border-dashed border-border bg-muted/30 h-36 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-muted/50 transition-colors overflow-hidden"
           onClick={() => fileRef.current?.click()}
@@ -230,6 +287,8 @@ function Step1({
         >
           {coverUrl ? (
             <>
+              {/* Plain <img> is correct here — blob: URLs are local and need no optimisation */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={coverUrl}
                 alt="Cover preview"
@@ -243,7 +302,7 @@ function Step1({
                   onChange({ ...data, coverPhoto: null });
                 }}
               >
-                <X className="size-3" />
+                <X className="size-3 cursor-pointer" />
               </button>
             </>
           ) : (
@@ -289,6 +348,33 @@ function Step1({
   );
 }
 
+// ─── Map panner — imperatively pans/zooms when coordinates change ─────────────
+// Must be rendered inside <Map> so useMap() resolves correctly.
+
+function MapPanner({
+  coordinates,
+}: {
+  coordinates: { lat: number; lng: number } | null;
+}) {
+  const map = useMap();
+  const prev = useRef<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    if (!map || !coordinates) return;
+    // Skip if coordinates haven't actually changed
+    if (
+      prev.current?.lat === coordinates.lat &&
+      prev.current?.lng === coordinates.lng
+    )
+      return;
+    prev.current = coordinates;
+    map.panTo(coordinates);
+    map.setZoom(15);
+  }, [map, coordinates]);
+
+  return null;
+}
+
 // ─── Step 2: Location ─────────────────────────────────────────────────────────
 
 function Step2({
@@ -300,6 +386,34 @@ function Step2({
   onChange: (d: Step2Data) => void;
   errors: FieldErrors<Step2Data>;
 }) {
+  const [geocoding, setGeocoding] = useState(false);
+
+  const handleFindOnMap = async () => {
+    const query = [data.physicalAddress, data.city, data.county, data.country]
+      .filter(Boolean)
+      .join(", ");
+    if (!query) return;
+
+    setGeocoding(true);
+    try {
+      // Proxied through our API route — keeps GOOGLE_MAPS_API_KEY server-side only
+      const res = await fetch(
+        `/api/geocode?address=${encodeURIComponent(query)}`,
+      );
+      const json = await res.json();
+      if (json.results?.[0]) {
+        const { lat, lng } = json.results[0].geometry.location;
+        onChange({ ...data, coordinates: { lat, lng } });
+      } else {
+        toast.error("Address not found. Try being more specific.");
+      }
+    } catch {
+      toast.error("Could not reach geocoding service.");
+    } finally {
+      setGeocoding(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -314,7 +428,9 @@ function Step2({
           className={inputCls(errors.physicalAddress)}
           placeholder="e.g. 14 Ridgeways Close, off Kiambu Road"
           value={data.physicalAddress}
-          onChange={(e) => onChange({ ...data, physicalAddress: e.target.value })}
+          onChange={(e) =>
+            onChange({ ...data, physicalAddress: e.target.value })
+          }
         />
       </Field>
 
@@ -329,7 +445,11 @@ function Step2({
             </SelectTrigger>
             <SelectContent className="p-1 rounded-md">
               {COUNTRIES.map((c) => (
-                <SelectItem key={c} value={c} className="text-xs cursor-pointer rounded-sm">
+                <SelectItem
+                  key={c}
+                  value={c}
+                  className="text-xs cursor-pointer rounded-sm"
+                >
                   {c}
                 </SelectItem>
               ))}
@@ -348,7 +468,11 @@ function Step2({
               </SelectTrigger>
               <SelectContent className="p-1 rounded-md">
                 {KENYA_COUNTIES.map((c) => (
-                  <SelectItem key={c} value={c} className="text-xs cursor-pointer rounded-sm">
+                  <SelectItem
+                    key={c}
+                    value={c}
+                    className="text-xs cursor-pointer rounded-sm"
+                  >
                     {c}
                   </SelectItem>
                 ))}
@@ -385,11 +509,76 @@ function Step2({
         </Field>
       </div>
 
-      {/* Map placeholder — v2 */}
-      <div className="rounded-lg border border-dashed border-border bg-muted/30 h-36 flex flex-col items-center justify-center gap-2">
-        <MapPin className="size-4 text-muted-foreground/50" />
-        <p className="text-xs text-muted-foreground">Interactive map coming in v2</p>
-      </div>
+      {/* Interactive map */}
+      <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              {data.coordinates
+                ? "Drag the pin to fine-tune the location."
+                : "Click the map or use the button to place a pin."}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-7 text-xs px-2.5 gap-1.5 cursor-pointer"
+              onClick={handleFindOnMap}
+              disabled={geocoding}
+            >
+              {geocoding ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : (
+                <MapPin className="size-3" />
+              )}
+              Find on map
+            </Button>
+          </div>
+
+          <div className="rounded-lg overflow-hidden border border-border h-52">
+            <Map
+              defaultCenter={{ lat: 1.2921, lng: 36.8219 }} // Nairobi
+              defaultZoom={6}
+              mapId="property-location-map"
+              gestureHandling="greedy"
+              disableDefaultUI
+              zoomControl
+              onClick={(e) => {
+                if (e.detail.latLng) {
+                  onChange({ ...data, coordinates: e.detail.latLng });
+                }
+              }}
+            >
+              {/* Imperatively pans to new coordinates without locking zoom */}
+              <MapPanner coordinates={data.coordinates} />
+
+              {data.coordinates && (
+                <AdvancedMarker
+                  position={data.coordinates}
+                  draggable
+                  onDragEnd={(e) => {
+                    if (e.latLng) {
+                      onChange({
+                        ...data,
+                        coordinates: {
+                          lat: e.latLng.lat(),
+                          lng: e.latLng.lng(),
+                        },
+                      });
+                    }
+                  }}
+                />
+              )}
+            </Map>
+          </div>
+
+          {data.coordinates && (
+            <p className="text-[11px] text-muted-foreground">
+              {data.coordinates.lat.toFixed(6)},{" "}
+              {data.coordinates.lng.toFixed(6)}
+            </p>
+          )}
+        </div>
+      </APIProvider>
     </div>
   );
 }
@@ -444,20 +633,24 @@ function UnitTypeRow({
             Type <span className="text-red-500">*</span>
           </Label>
           {!custom ? (
-            <Select
-              value={unit.name || ""}
-              onValueChange={handleSelectChange}
-            >
+            <Select value={unit.name || ""} onValueChange={handleSelectChange}>
               <SelectTrigger className="h-8 text-xs border-border rounded-md focus:ring-0 focus-visible:ring-0">
                 <SelectValue placeholder="Select unit type" />
               </SelectTrigger>
               <SelectContent className="p-1 rounded-md">
                 {UNIT_TYPE_PRESETS.map((p) => (
-                  <SelectItem key={p} value={p} className="text-xs cursor-pointer rounded-sm">
+                  <SelectItem
+                    key={p}
+                    value={p}
+                    className="text-xs cursor-pointer rounded-sm"
+                  >
                     {p}
                   </SelectItem>
                 ))}
-                <SelectItem value="__custom__" className="text-xs cursor-pointer rounded-sm text-[#2D64C8]">
+                <SelectItem
+                  value="__custom__"
+                  className="text-xs cursor-pointer rounded-sm text-[#2D64C8]"
+                >
                   Custom…
                 </SelectItem>
               </SelectContent>
@@ -474,7 +667,10 @@ function UnitTypeRow({
               <button
                 type="button"
                 className="text-[11px] text-[#2D64C8] hover:underline whitespace-nowrap"
-                onClick={() => { setCustom(false); onChange({ ...unit, name: "" }); }}
+                onClick={() => {
+                  setCustom(false);
+                  onChange({ ...unit, name: "" });
+                }}
               >
                 Use preset
               </button>
@@ -523,7 +719,9 @@ function UnitTypeRow({
             className="h-8 text-xs border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs"
             placeholder="e.g. 50,000 — leave blank if same as rent"
             value={unit.depositAmount}
-            onChange={(e) => onChange({ ...unit, depositAmount: e.target.value })}
+            onChange={(e) =>
+              onChange({ ...unit, depositAmount: e.target.value })
+            }
           />
         </div>
       </div>
@@ -549,13 +747,21 @@ function Step3({
     onChange({
       unitTypes: [
         ...data.unitTypes,
-        { id: crypto.randomUUID(), name: "", count: "", rentAmount: "", depositAmount: "" },
+        {
+          id: crypto.randomUUID(),
+          name: "",
+          count: "",
+          rentAmount: "",
+          depositAmount: "",
+        },
       ],
     });
   };
 
   const updateUnitType = (id: string, updated: UnitType) => {
-    onChange({ unitTypes: data.unitTypes.map((u) => (u.id === id ? updated : u)) });
+    onChange({
+      unitTypes: data.unitTypes.map((u) => (u.id === id ? updated : u)),
+    });
   };
 
   const removeUnitType = (id: string) => {
@@ -565,10 +771,12 @@ function Step3({
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="text-xs font-semibold text-foreground">Unit Configuration</h2>
+        <h2 className="text-xs font-semibold text-foreground">
+          Unit Configuration
+        </h2>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Define the unit types in this property. Individual units can be fine-tuned after
-          the property is created.
+          Define the unit types in this property. Individual units can be
+          fine-tuned after the property is created.
         </p>
       </div>
 
@@ -597,8 +805,12 @@ function Step3({
 
       {totalUnits > 0 && (
         <div className="rounded-md bg-muted/40 border border-border px-3 py-2 flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">Total units across all types</span>
-          <span className="text-xs font-semibold text-foreground">{totalUnits}</span>
+          <span className="text-xs text-muted-foreground">
+            Total units across all types
+          </span>
+          <span className="text-xs font-semibold text-foreground">
+            {totalUnits}
+          </span>
         </div>
       )}
     </div>
@@ -624,7 +836,9 @@ function Step4({
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h2 className="text-xs font-semibold text-foreground">Amenities & Features</h2>
+        <h2 className="text-xs font-semibold text-foreground">
+          Amenities & Features
+        </h2>
         <p className="text-xs text-muted-foreground mt-0.5">
           Select what this property offers. You can update these at any time.
         </p>
@@ -682,7 +896,9 @@ function Step5({
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="text-xs font-semibold text-foreground">Payment & Billing</h2>
+        <h2 className="text-xs font-semibold text-foreground">
+          Payment & Billing
+        </h2>
         <p className="text-xs text-muted-foreground mt-0.5">
           Set the billing rules that apply to all units in this property.
         </p>
@@ -698,7 +914,9 @@ function Step5({
               className={inputCls(errors.rentDueDay)}
               placeholder="1"
               value={data.rentDueDay}
-              onChange={(e) => onChange({ ...data, rentDueDay: e.target.value })}
+              onChange={(e) =>
+                onChange({ ...data, rentDueDay: e.target.value })
+              }
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground pointer-events-none">
               of month
@@ -715,7 +933,9 @@ function Step5({
               className={inputCls(errors.gracePeriodDays)}
               placeholder="5"
               value={data.gracePeriodDays}
-              onChange={(e) => onChange({ ...data, gracePeriodDays: e.target.value })}
+              onChange={(e) =>
+                onChange({ ...data, gracePeriodDays: e.target.value })
+              }
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground pointer-events-none">
               days
@@ -736,10 +956,16 @@ function Step5({
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="p-1 rounded-md">
-              <SelectItem value="flat" className="text-xs cursor-pointer rounded-sm">
+              <SelectItem
+                value="flat"
+                className="text-xs cursor-pointer rounded-sm"
+              >
                 Flat Amount (KES)
               </SelectItem>
-              <SelectItem value="percentage" className="text-xs cursor-pointer rounded-sm">
+              <SelectItem
+                value="percentage"
+                className="text-xs cursor-pointer rounded-sm"
+              >
                 Percentage of Rent (%)
               </SelectItem>
             </SelectContent>
@@ -747,7 +973,11 @@ function Step5({
         </Field>
 
         <Field
-          label={data.lateFeeType === "flat" ? "Late Fee Amount (KES)" : "Late Fee (%)"}
+          label={
+            data.lateFeeType === "flat"
+              ? "Late Fee Amount (KES)"
+              : "Late Fee (%)"
+          }
           required
           error={errors.lateFeeValue}
         >
@@ -757,12 +987,18 @@ function Step5({
             className={inputCls(errors.lateFeeValue)}
             placeholder={data.lateFeeType === "flat" ? "e.g. 500" : "e.g. 5"}
             value={data.lateFeeValue}
-            onChange={(e) => onChange({ ...data, lateFeeValue: e.target.value })}
+            onChange={(e) =>
+              onChange({ ...data, lateFeeValue: e.target.value })
+            }
           />
         </Field>
       </div>
 
-      <Field label="Accepted Payment Methods" required error={errors.paymentMethods}>
+      <Field
+        label="Accepted Payment Methods"
+        required
+        error={errors.paymentMethods}
+      >
         <div className="flex flex-wrap gap-2 mt-0.5">
           {PAYMENT_METHODS.map((method) => (
             <Pill
@@ -782,13 +1018,15 @@ function Step5({
 
 function validateStep1(data: Step1Data): FieldErrors<Step1Data> {
   const errors: FieldErrors<Step1Data> = {};
-  if (!data.propertyName.trim()) errors.propertyName = "Property name is required.";
+  if (!data.propertyName.trim())
+    errors.propertyName = "Property name is required.";
   return errors;
 }
 
 function validateStep2(data: Step2Data): FieldErrors<Step2Data> {
   const errors: FieldErrors<Step2Data> = {};
-  if (!data.physicalAddress.trim()) errors.physicalAddress = "Physical address is required.";
+  if (!data.physicalAddress.trim())
+    errors.physicalAddress = "Physical address is required.";
   if (!data.country) errors.country = "Please select a country.";
   if (!data.county.trim()) errors.county = "County is required.";
   if (!data.city.trim()) errors.city = "City is required.";
@@ -825,6 +1063,7 @@ function validateStep5(data: Step5Data): FieldErrors<Step5Data> {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function NewPropertyPage() {
+  const router = useRouter();
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
 
@@ -839,10 +1078,17 @@ export default function NewPropertyPage() {
     county: "",
     city: "",
     location: "",
+    coordinates: null,
   });
   const [step3, setStep3] = useState<Step3Data>({
     unitTypes: [
-      { id: crypto.randomUUID(), name: "", count: "", rentAmount: "", depositAmount: "" },
+      {
+        id: crypto.randomUUID(),
+        name: "",
+        count: "",
+        rentAmount: "",
+        depositAmount: "",
+      },
     ],
   });
   const [step4, setStep4] = useState<Step4Data>({ amenities: [] });
@@ -856,23 +1102,32 @@ export default function NewPropertyPage() {
 
   const [errors1, setErrors1] = useState<FieldErrors<Step1Data>>({});
   const [errors2, setErrors2] = useState<FieldErrors<Step2Data>>({});
-  const [error3, setError3]   = useState<string | undefined>();
+  const [error3, setError3] = useState<string | undefined>();
   const [errors5, setErrors5] = useState<FieldErrors<Step5Data>>({});
 
   const handleNext = () => {
     if (step === 1) {
       const errs = validateStep1(step1);
-      if (Object.keys(errs).length) { setErrors1(errs); return; }
+      if (Object.keys(errs).length) {
+        setErrors1(errs);
+        return;
+      }
       setErrors1({});
       setStep(2);
     } else if (step === 2) {
       const errs = validateStep2(step2);
-      if (Object.keys(errs).length) { setErrors2(errs); return; }
+      if (Object.keys(errs).length) {
+        setErrors2(errs);
+        return;
+      }
       setErrors2({});
       setStep(3);
     } else if (step === 3) {
       const err = validateStep3(step3);
-      if (err) { setError3(err); return; }
+      if (err) {
+        setError3(err);
+        return;
+      }
       setError3(undefined);
       setStep(4);
     } else if (step === 4) {
@@ -885,16 +1140,55 @@ export default function NewPropertyPage() {
 
   const handleSubmit = async () => {
     const errs = validateStep5(step5);
-    if (Object.keys(errs).length) { setErrors5(errs); return; }
+    if (Object.keys(errs).length) {
+      setErrors5(errs);
+      return;
+    }
     setErrors5({});
     setSubmitting(true);
 
-    // TODO: replace with real API call
-    await new Promise((r) => setTimeout(r, 1500));
+    try {
+      const formData = new FormData();
 
-    toast.success("Property created successfully!");
-    setSubmitting(false);
-    // TODO: router.push(`/portal/properties/${newId}`)
+      // File goes in directly — FormData handles binary correctly
+      if (step1.coverPhoto) {
+        formData.append("coverPhoto", step1.coverPhoto);
+      }
+
+      // Strip the File object before serializing step1
+      formData.append(
+        "step1",
+        JSON.stringify({
+          propertyName: step1.propertyName,
+          description: step1.description,
+        }),
+      );
+      formData.append("step2", JSON.stringify(step2));
+      formData.append("step3", JSON.stringify(step3));
+      formData.append("step4", JSON.stringify(step4));
+      formData.append("step5", JSON.stringify(step5));
+
+      const res = await fetch("/api/properties", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const { error } = await res.json();
+        throw new Error(error ?? "Unknown error");
+      }
+
+      const { propertyId } = await res.json();
+      toast.success("Property created successfully!");
+      router.push(`/portal/properties/${propertyId}`);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to create property.",
+      );
+      console.error(err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -903,11 +1197,19 @@ export default function NewPropertyPage() {
         <StepIndicator current={step} steps={WIZARD_STEPS} />
 
         <div className="rounded-lg border bg-white p-4 flex flex-col gap-4">
-          {step === 1 && <Step1 data={step1} onChange={setStep1} errors={errors1} />}
-          {step === 2 && <Step2 data={step2} onChange={setStep2} errors={errors2} />}
-          {step === 3 && <Step3 data={step3} onChange={setStep3} error={error3} />}
+          {step === 1 && (
+            <Step1 data={step1} onChange={setStep1} errors={errors1} />
+          )}
+          {step === 2 && (
+            <Step2 data={step2} onChange={setStep2} errors={errors2} />
+          )}
+          {step === 3 && (
+            <Step3 data={step3} onChange={setStep3} error={error3} />
+          )}
           {step === 4 && <Step4 data={step4} onChange={setStep4} />}
-          {step === 5 && <Step5 data={step5} onChange={setStep5} errors={errors5} />}
+          {step === 5 && (
+            <Step5 data={step5} onChange={setStep5} errors={errors5} />
+          )}
 
           {/* Navigation */}
           <div className="flex items-center justify-between">
