@@ -14,8 +14,6 @@ export function useProperty(id: string) {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  const [propertyManagerId, setPropertyManagerId] = useState("");
-
   useEffect(() => {
     if (!id) return;
 
@@ -37,7 +35,6 @@ export function useProperty(id: string) {
 
         setProperty(data);
         setContacts(data.contacts ?? []);
-        setPropertyManagerId(data.propertyManager?._id ?? "");
 
         if (unitsRes.ok) {
           const unitsData = await unitsRes.json();
@@ -53,16 +50,5 @@ export function useProperty(id: string) {
     load();
   }, [id]);
 
-  return {
-    property,
-    setProperty,
-    units,
-    setUnits,
-    contacts,
-    setContacts,
-    propertyManagerId,
-    setPropertyManagerId,
-    loading,
-    notFound,
-  };
+  return { property, setProperty, units, contacts, setContacts, loading, notFound };
 }

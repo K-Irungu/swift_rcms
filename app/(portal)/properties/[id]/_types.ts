@@ -26,6 +26,7 @@ export type Property = {
     paymentMethods: string[];
   };
   propertyManager?: { _id: string; fullName: string; email: string } | null;
+  contacts?: Contact[];
   createdAt: string;
   updatedAt: string;
 };
@@ -64,20 +65,10 @@ export type Draft = {
 };
 
 export type Contact = {
-  _id: string; // was: id
+  _id: string;
   role: string;
   name: string;
   phone: string;
 };
 
-export type Props = {
-  open: boolean;
-  sheetOpen: boolean;
-  closeSheet: () => void;
-  saving: boolean;
-//   draft: Draft | null;
-//   setDraft: React.Dispatch<React.SetStateAction<Draft | null>>;
-  property: Property;
-  onClose: () => void;
-  onSaved: (p: Property) => void;
-};
+export type TabKey = "overview" | "units" | "financials" | "maintenance";

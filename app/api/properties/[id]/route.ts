@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import Property from "@/lib/models/Property";
+import "@/lib/models/User";
 import { Unit } from "@/lib/models/Unit";
 import { Lease } from "@/lib/models/Lease";
 import { Invoice } from "@/lib/models/Invoice";
@@ -25,6 +26,11 @@ async function resolveAndAuthorize(slug: string, ownerOnly = false) {
   await connectDB();
 
   const property = await Property.findOne({ slug });
+
+
+  console.log("Resolved property:", property)
+
+  
   if (!property) {
     return {
       ok: false as const,

@@ -105,11 +105,9 @@ export function useGeocode(
         return;
       }
 
-const { lat, lng } = json.results[0].geometry.location;
-setFormattedAddress(json.results[0].formatted_address ?? null);
-return { lat, lng } as Coords;
-
-   
+      const { lat, lng } = json.results[0].geometry.location as Coords;
+      setFormattedAddress(json.results[0].formatted_address ?? null);
+      setCoords({ lat, lng });
     } catch {
       if (!silent) toast.error("Could not reach geocoding service.");
     } finally {
