@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { ResetPasswordForm } from "@/components/reset-password-form";
 import Image from "next/image";
 
@@ -20,7 +21,9 @@ export default function ResetPasswordPage() {
           </a>
           <div className="flex flex-1 items-center justify-start 2xl:flex-none">
             <div className="w-full">
-              <ResetPasswordForm />
+              <Suspense>
+                <ResetPasswordForm />
+              </Suspense>
             </div>
           </div>
           {/* Footer */}
