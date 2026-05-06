@@ -16,7 +16,6 @@ import {
   type VisibilityState,
 } from "@tanstack/react-table";
 import {
-  CalendarIcon,
   Search,
   Plus,
   ChevronsLeft,
@@ -31,16 +30,9 @@ import {
   MapPin,
   Building2,
 } from "lucide-react";
-import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import {
   Select,
   SelectContent,
@@ -290,10 +282,6 @@ export default function PropertiesPage() {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = React.useState("");
-  const [dateFilter, setDateFilter] = React.useState<{
-    from: Date | undefined;
-    to: Date | undefined;
-  }>({ from: undefined, to: undefined });
   const [pagination, setPagination] = React.useState({ pageIndex: 0, pageSize: 10 });
 
   useEffect(() => {
@@ -304,10 +292,9 @@ export default function PropertiesPage() {
       .finally(() => setFetching(false));
   }, []);
 
-  const hasActiveFilters = !!dateFilter.from || !!dateFilter.to || globalFilter !== "";
+  const hasActiveFilters = globalFilter !== "";
 
   const clearFilters = () => {
-    setDateFilter({ from: undefined, to: undefined });
     setGlobalFilter("");
   };
 
@@ -418,18 +405,7 @@ export default function PropertiesPage() {
     },
   ];
 
-  const filteredData = React.useMemo(() => {
-    return properties.filter((p) => {
-      const createdAt = new Date(p.createdAt);
-      if (dateFilter.from && createdAt < dateFilter.from) return false;
-      if (dateFilter.to) {
-        const toEnd = new Date(dateFilter.to);
-        toEnd.setHours(23, 59, 59, 999);
-        if (createdAt > toEnd) return false;
-      }
-      return true;
-    });
-  }, [properties, dateFilter]);
+  const filteredData = properties;
 
   const table = useReactTable({
     data: filteredData,
@@ -453,46 +429,6 @@ export default function PropertiesPage() {
 
         {/* ── Filters ── */}
         <div className="flex items-center gap-2 flex-wrap">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="h-8 gap-2 text-xs font-normal text-muted-foreground border-border rounded-md hover:bg-black/5 cursor-pointer focus-visible:ring-0 focus-visible:outline-none"
-              >
-                <CalendarIcon className="size-4 text-muted-foreground" />
-                {dateFilter.from && dateFilter.to
-                  ? `${format(dateFilter.from, "MMM d")} – ${format(dateFilter.to, "MMM d, yyyy")}`
-                  : dateFilter.from
-                  ? `From ${format(dateFilter.from, "MMM d, yyyy")}`
-                  : "Filter by date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 [&_*]:text-xs" align="start">
-              <Calendar
-                mode="range"
-                selected={{ from: dateFilter.from, to: dateFilter.to }}
-                onSelect={(range) =>
-                  setDateFilter({ from: range?.from, to: range?.to })
-                }
-                initialFocus
-                numberOfMonths={2}
-                className="text-xs"
-              />
-              {(dateFilter.from || dateFilter.to) && (
-                <div className="p-2 border-t">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full text-xs"
-                    onClick={() => setDateFilter({ from: undefined, to: undefined })}
-                  >
-                    Clear dates
-                  </Button>
-                </div>
-              )}
-            </PopoverContent>
-          </Popover>
-
           <div className="relative bg-white rounded-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
             <Input
