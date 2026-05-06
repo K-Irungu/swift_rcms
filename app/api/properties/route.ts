@@ -13,16 +13,23 @@ import { getCurrentUser } from "@/lib/utils/auth";
 
 export async function GET() {
   try {
-    
-      const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     await connectDB();
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    const endOfMonth = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+      999,
+    );
 
     const [properties, unitStats, revenueStats, arrearsStats, collectionStats] =
       await Promise.all([
@@ -35,7 +42,9 @@ export async function GET() {
               _id: "$propertyId",
               total: { $sum: 1 },
               occupied: {
-                $sum: { $cond: [{ $eq: ["$occupancyStatus", "OCCUPIED"] }, 1, 0] },
+                $sum: {
+                  $cond: [{ $eq: ["$occupancyStatus", "OCCUPIED"] }, 1, 0],
+                },
               },
             },
           },
@@ -92,7 +101,11 @@ export async function GET() {
 
         // Collected this month = sum of payments where paymentForMonth is current month
         Payment.aggregate([
-          { $match: { paymentForMonth: { $gte: startOfMonth, $lte: endOfMonth } } },
+          {
+            $match: {
+              paymentForMonth: { $gte: startOfMonth, $lte: endOfMonth },
+            },
+          },
           {
             $lookup: {
               from: "leases",
@@ -124,25 +137,25 @@ export async function GET() {
       unitStats.map((u: { _id: string; total: number; occupied: number }) => [
         u._id.toString(),
         { total: u.total, occupied: u.occupied },
-      ])
+      ]),
     );
     const revenueMap = new Map(
       revenueStats.map((r: { _id: string; monthlyRevenue: number }) => [
         r._id.toString(),
         r.monthlyRevenue,
-      ])
+      ]),
     );
     const arrearsMap = new Map(
       arrearsStats.map((a: { _id: string; arrears: number }) => [
         a._id.toString(),
         a.arrears,
-      ])
+      ]),
     );
     const collectionMap = new Map(
       collectionStats.map((c: { _id: string; collected: number }) => [
         c._id.toString(),
         c.collected,
-      ])
+      ]),
     );
 
     const enriched = properties.map((p) => {
@@ -166,11 +179,15 @@ export async function GET() {
   } catch (error) {
     console.error(error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to fetch properties" },
-      { status: 500 }
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to fetch properties",
+      },
+      { status: 500 },
     );
   }
 }
+
 
 async function generateUniqueSlug(name: string): Promise<string> {
   const base = name
@@ -183,7 +200,7 @@ async function generateUniqueSlug(name: string): Promise<string> {
 
   for (let attempt = 0; attempt < 5; attempt++) {
     const suffix = crypto.randomBytes(3).toString("hex"); // 6 cryptographically random hex chars
-    const slug   = `${base}-${suffix}`;
+    const slug = `${base}-${suffix}`;
     const exists = await Property.exists({ slug });
     if (!exists) return slug;
   }
@@ -192,7 +209,7 @@ async function generateUniqueSlug(name: string): Promise<string> {
 
 export async function POST(req: NextRequest) {
   try {
-      const user = await getCurrentUser();
+    const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -211,13 +228,15 @@ export async function POST(req: NextRequest) {
     const file = formData.get("coverPhoto") as File | null;
 
     if (file) {
-      const bytes  = await file.arrayBuffer();
+      const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
       // Validate by magic bytes — never trust client-supplied MIME type
       const isJpeg = buffer[0] === 0xff && buffer[1] === 0xd8;
-      const isPng  = buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
-      const isWebp = buffer.length > 12 && buffer.slice(8, 12).toString("ascii") === "WEBP";
+      const isPng =
+        buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+      const isWebp =
+        buffer.length > 12 && buffer.slice(8, 12).toString("ascii") === "WEBP";
       if (!isJpeg && !isPng && !isWebp) {
         return NextResponse.json(
           { error: "Only JPEG, PNG, and WebP images are allowed" },
@@ -225,10 +244,13 @@ export async function POST(req: NextRequest) {
         );
       }
       if (buffer.length > 5 * 1024 * 1024) {
-        return NextResponse.json({ error: "Image must be under 5 MB" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Image must be under 5 MB" },
+          { status: 400 },
+        );
       }
 
-      const ext      = isJpeg ? "jpg" : isPng ? "png" : "webp";
+      const ext = isJpeg ? "jpg" : isPng ? "png" : "webp";
       const filename = `${Date.now()}-${file.name.replace(/\.[^.]+$/, "")}.${ext}`;
       const filepath = path.join(process.cwd(), "public/uploads", filename);
       await fs.writeFile(filepath, buffer);
@@ -242,7 +264,7 @@ export async function POST(req: NextRequest) {
       slug,
       description: step1.description,
       coverPhotoUrl,
-      ownerId: user.userId,   // <-- add this
+      ownerId: user.userId, 
 
       location: {
         physicalAddress: step2.physicalAddress,
@@ -263,15 +285,20 @@ export async function POST(req: NextRequest) {
         rentDueDay: Number(step4.rentDueDay),
         paymentMethods: step4.paymentMethods,
       },
-
     });
 
-    return NextResponse.json({ success: true, slug: property.slug }, { status: 201 });
+    return NextResponse.json(
+      { success: true, slug: property.slug },
+      { status: 201 },
+    );
   } catch (error) {
     console.error(error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to create property" },
-      { status: 500 }
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to create property",
+      },
+      { status: 500 },
     );
   }
 }

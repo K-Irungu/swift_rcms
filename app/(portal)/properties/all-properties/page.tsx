@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -28,7 +27,6 @@ import {
   ArrowRight,
   X,
   MapPin,
-  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -99,7 +97,7 @@ function SortIcon({ sorted }: { sorted: false | "asc" | "desc" }) {
   return <ArrowUpDown className="size-3 ml-1 inline-block opacity-40" />;
 }
 
-// ─── Collection rate cell ─────────────────────────────────────────────────────
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function CollectionRateCell({ stats }: { stats: PropertyStats }) {
   const { monthlyRevenue, collectedThisMonth } = stats;
@@ -130,8 +128,6 @@ function CollectionRateCell({ stats }: { stats: PropertyStats }) {
   );
 }
 
-// ─── Occupancy cell ───────────────────────────────────────────────────────────
-
 function OccupancyCell({ stats }: { stats: PropertyStats }) {
   const { totalUnits, occupiedUnits, vacantUnits } = stats;
 
@@ -148,8 +144,6 @@ function OccupancyCell({ stats }: { stats: PropertyStats }) {
     </div>
   );
 }
-
-// ─── Mobile property card ─────────────────────────────────────────────────────
 
 function PropertyCard({
   property,
@@ -168,10 +162,10 @@ function PropertyCard({
     collectionPct === null
       ? ""
       : collectionPct >= 90
-      ? "text-[#2D64C8]"
-      : collectionPct >= 50
-      ? "text-amber-600"
-      : "text-red-600";
+        ? "text-[#2D64C8]"
+        : collectionPct >= 50
+          ? "text-amber-600"
+          : "text-red-600";
 
   return (
     <div
@@ -232,15 +226,16 @@ function PropertyCard({
       <Button
         variant="outline"
         className="gap-1.5 text-xs h-8 px-3 w-full cursor-pointer hover:bg-white"
-        onClick={(e) => { e.stopPropagation(); onClick(); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick();
+        }}
       >
         Manage <ArrowRight className="size-3.5" />
       </Button>
     </div>
   );
 }
-
-// ─── Skeleton rows ────────────────────────────────────────────────────────────
 
 function SkeletonRows({ cols }: { cols: number }) {
   return (
@@ -261,19 +256,18 @@ function SkeletonRows({ cols }: { cols: number }) {
   );
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PropertiesPage() {
   const router = useRouter();
 
   const [properties, setProperties] = useState<Property[]>([]);
   const [fetching, setFetching] = useState(true);
-
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [globalFilter, setGlobalFilter] = React.useState("");
-  const [pagination, setPagination] = React.useState({ pageIndex: 0, pageSize: 10 });
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
 
   useEffect(() => {
     fetch("/api/properties")
@@ -282,12 +276,6 @@ export default function PropertiesPage() {
       .catch(() => toast.error("Failed to load properties."))
       .finally(() => setFetching(false));
   }, []);
-
-  const hasActiveFilters = globalFilter !== "";
-
-  const clearFilters = () => {
-    setGlobalFilter("");
-  };
 
   const columns: ColumnDef<Property>[] = [
     {
@@ -308,22 +296,18 @@ export default function PropertiesPage() {
     {
       id: "location",
       size: 160,
-      header: () => (
-        <span className="text-xs font-semibold text-muted-foreground tracking-wide">
-          Location
-        </span>
-      ),
       accessorFn: (row) => locationString(row),
+      header: () => (
+        <span className="text-xs font-semibold text-muted-foreground tracking-wide">Location</span>
+      ),
       cell: ({ row }) => {
-        const loc = row.original.location;
-        const label = locationString(row.original);
-        const coords = loc.coordinates;
+        const { location } = row.original;
         return (
           <div className="flex flex-col gap-0.5">
-            <span className="text-muted-foreground">{label || "—"}</span>
-            {coords && (
+            <span className="text-muted-foreground">{locationString(row.original) || "—"}</span>
+            {location.coordinates && (
               <span className="text-[11px] font-mono text-muted-foreground/70">
-                Lat. {coords.lat.toFixed(4)}, Long. {coords.lng.toFixed(4)}
+                Lat. {location.coordinates.lat.toFixed(4)}, Long. {location.coordinates.lng.toFixed(4)}
               </span>
             )}
           </div>
@@ -333,12 +317,10 @@ export default function PropertiesPage() {
     {
       id: "units",
       size: 120,
-      header: () => (
-        <span className="text-xs font-semibold text-muted-foreground tracking-wide">
-          Units
-        </span>
-      ),
       accessorFn: (row) => configuredUnits(row),
+      header: () => (
+        <span className="text-xs font-semibold text-muted-foreground tracking-wide">Units</span>
+      ),
       cell: ({ row }) => {
         const units = configuredUnits(row.original);
         const types = row.original.unitTypes.length;
@@ -359,6 +341,11 @@ export default function PropertiesPage() {
     {
       id: "collectionRate",
       size: 200,
+      // -1 sorts properties with no active leases to the bottom when sorted
+      accessorFn: (row) =>
+        row.stats.monthlyRevenue > 0
+          ? row.stats.collectedThisMonth / row.stats.monthlyRevenue
+          : -1,
       header: ({ column }) => (
         <button
           className="flex items-center text-xs font-semibold text-muted-foreground tracking-wide hover:text-foreground transition-colors cursor-pointer"
@@ -367,15 +354,16 @@ export default function PropertiesPage() {
           Collection Rate <SortIcon sorted={column.getIsSorted()} />
         </button>
       ),
-      accessorFn: (row) =>
-        row.stats.monthlyRevenue > 0
-          ? row.stats.collectedThisMonth / row.stats.monthlyRevenue
-          : -1,
       cell: ({ row }) => <CollectionRateCell stats={row.original.stats} />,
     },
     {
       id: "occupancy",
       size: 160,
+      // -1 sorts properties with no units to the bottom when sorted
+      accessorFn: (row) =>
+        row.stats.totalUnits > 0
+          ? row.stats.occupiedUnits / row.stats.totalUnits
+          : -1,
       header: ({ column }) => (
         <button
           className="flex items-center text-xs font-semibold text-muted-foreground tracking-wide hover:text-foreground transition-colors cursor-pointer"
@@ -384,10 +372,6 @@ export default function PropertiesPage() {
           Occupancy <SortIcon sorted={column.getIsSorted()} />
         </button>
       ),
-      accessorFn: (row) =>
-        row.stats.totalUnits > 0
-          ? row.stats.occupiedUnits / row.stats.totalUnits
-          : -1,
       cell: ({ row }) => <OccupancyCell stats={row.original.stats} />,
     },
     {
@@ -408,10 +392,8 @@ export default function PropertiesPage() {
     },
   ];
 
-  const filteredData = properties;
-
   const table = useReactTable({
-    data: filteredData,
+    data: properties,
     columns,
     state: { sorting, columnVisibility, columnFilters, pagination, globalFilter },
     getRowId: (row) => row._id,
@@ -430,7 +412,7 @@ export default function PropertiesPage() {
     <div className="flex flex-col bg-[#F0F4F8] w-full">
       <div className="p-4 flex flex-col gap-4">
 
-        {/* ── Filters ── */}
+        {/* Toolbar */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative bg-white rounded-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
@@ -441,17 +423,15 @@ export default function PropertiesPage() {
               className="h-8 pl-9 w-52 text-xs border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs"
             />
           </div>
-
-          {hasActiveFilters && (
+          {globalFilter && (
             <Button
               variant="outline"
               className="h-8 gap-1.5 text-xs font-normal text-muted-foreground border-border rounded-md hover:bg-black/5 cursor-pointer focus-visible:ring-0 focus-visible:outline-none"
-              onClick={clearFilters}
+              onClick={() => setGlobalFilter("")}
             >
               <X className="size-3.5" /> Clear filters
             </Button>
           )}
-
           <Button
             className="ml-auto bg-[#2D64C8] hover:bg-[#2D64C8]/90 gap-1.5 text-xs font-semibold h-8 px-3 w-36 cursor-pointer"
             onClick={() => router.push("/properties/new")}
@@ -460,7 +440,7 @@ export default function PropertiesPage() {
           </Button>
         </div>
 
-        {/* ── Desktop table ── */}
+        {/* Desktop table */}
         <div className="hidden md:block rounded-lg border bg-white overflow-auto">
           <Table style={{ tableLayout: "fixed", width: "100%" }}>
             <TableHeader className="bg-muted/50">
@@ -483,15 +463,12 @@ export default function PropertiesPage() {
             <TableBody>
               {fetching ? (
                 <SkeletonRows cols={columns.length} />
-              ) : table.getRowModel().rows?.length ? (
+              ) : table.getRowModel().rows.length ? (
                 table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
                     className="hover:bg-muted/40 transition-colors cursor-pointer"
-                    onClick={() => {
-                      router.push(`/properties/${row.original.slug}`);
-                      console.log(row);
-                    }}
+                    onClick={() => router.push(`/properties/${row.original.slug}`)}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell
@@ -518,14 +495,11 @@ export default function PropertiesPage() {
           </Table>
         </div>
 
-        {/* ── Mobile card list ── */}
+        {/* Mobile card list */}
         <div className="flex flex-col gap-3 md:hidden">
           {fetching ? (
             [...Array(3)].map((_, i) => (
-              <div
-                key={i}
-                className="bg-white rounded-lg border p-4 flex flex-col gap-3 animate-pulse"
-              >
+              <div key={i} className="bg-white rounded-lg border p-4 flex flex-col gap-3 animate-pulse">
                 <div className="h-4 bg-muted rounded w-3/4" />
                 <div className="h-3 bg-muted rounded w-1/2" />
                 <div className="grid grid-cols-2 gap-3">
@@ -536,7 +510,7 @@ export default function PropertiesPage() {
                 <div className="h-8 bg-muted rounded w-full" />
               </div>
             ))
-          ) : table.getRowModel().rows?.length ? (
+          ) : table.getRowModel().rows.length ? (
             table.getRowModel().rows.map((row) => (
               <PropertyCard
                 key={row.id}
@@ -551,7 +525,7 @@ export default function PropertiesPage() {
           )}
         </div>
 
-        {/* ── Pagination ── */}
+        {/* Pagination */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 pb-2">
           <div className="flex flex-wrap items-center gap-3 sm:gap-6">
             <div className="flex items-center gap-2">
@@ -567,37 +541,26 @@ export default function PropertiesPage() {
                 </SelectTrigger>
                 <SelectContent side="top">
                   {[10, 20, 30, 50].map((size) => (
-                    <SelectItem key={size} value={`${size}`}>
-                      {size}
-                    </SelectItem>
+                    <SelectItem key={size} value={`${size}`}>{size}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-xs font-medium whitespace-nowrap">
-                Page {table.getState().pagination.pageIndex + 1} of{" "}
-                {table.getPageCount()}
+                Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
               </span>
               <div className="flex items-center gap-1">
-                <Button variant="outline" size="icon" className="size-8"
-                  onClick={() => table.setPageIndex(0)}
-                  disabled={!table.getCanPreviousPage()}>
+                <Button variant="outline" size="icon" className="size-8" onClick={() => table.setPageIndex(0)} disabled={!table.getCanPreviousPage()}>
                   <ChevronsLeft className="size-4" />
                 </Button>
-                <Button variant="outline" size="icon" className="size-8"
-                  onClick={() => table.previousPage()}
-                  disabled={!table.getCanPreviousPage()}>
+                <Button variant="outline" size="icon" className="size-8" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
                   <ChevronLeft className="size-4" />
                 </Button>
-                <Button variant="outline" size="icon" className="size-8"
-                  onClick={() => table.nextPage()}
-                  disabled={!table.getCanNextPage()}>
+                <Button variant="outline" size="icon" className="size-8" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
                   <ChevronRight className="size-4" />
                 </Button>
-                <Button variant="outline" size="icon" className="size-8"
-                  onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                  disabled={!table.getCanNextPage()}>
+                <Button variant="outline" size="icon" className="size-8" onClick={() => table.setPageIndex(table.getPageCount() - 1)} disabled={!table.getCanNextPage()}>
                   <ChevronsRight className="size-4" />
                 </Button>
               </div>
