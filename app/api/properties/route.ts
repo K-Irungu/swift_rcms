@@ -165,6 +165,18 @@ export async function GET() {
   }
 }
 
+function generateSlug(name: string): string {
+  const base = name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  const suffix = Math.random().toString(36).slice(2, 6);
+  return `${base}-${suffix}`;
+}
+
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
@@ -191,6 +203,7 @@ export async function POST(req: NextRequest) {
 
     const property = await Property.create({
       propertyName: step1.propertyName,
+      slug: generateSlug(step1.propertyName),
       description: step1.description,
       coverPhotoUrl,
 

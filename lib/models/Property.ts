@@ -9,6 +9,7 @@ export interface IUnitType {
 
 export interface IProperty extends Document {
   propertyName: string;
+  slug: string;
   description?: string;
   coverPhotoUrl?: string;
 
@@ -44,6 +45,7 @@ const UnitTypeSchema = new Schema<IUnitType>({
 const PropertySchema = new Schema<IProperty>(
   {
     propertyName: { type: String, required: true },
+    slug: { type: String, unique: true, sparse: true, index: true },
     description: { type: String },
     coverPhotoUrl: { type: String },
 

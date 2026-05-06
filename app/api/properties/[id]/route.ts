@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import Property from "@/lib/models/Property";
 
+function buildQuery(slug: string) {
+  return { slug };
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -9,7 +13,7 @@ export async function GET(
   try {
     const { id } = await params;
     await connectDB();
-    const property = await Property.findById(id);
+    const property = await Property.findOne(buildQuery(id));
     if (!property) {
       return NextResponse.json({ error: "Property not found" }, { status: 404 });
     }
@@ -30,7 +34,11 @@ export async function PUT(
   try {
     const { id } = await params;
     await connectDB();
-    const property = await Property.findByIdAndUpdate(id, await req.json(), { new: true });
+    const property = await Property.findOneAndUpdate(
+      buildQuery(id),
+      await req.json(),
+      { new: true }
+    );
     if (!property) {
       return NextResponse.json({ error: "Property not found" }, { status: 404 });
     }
@@ -51,7 +59,7 @@ export async function DELETE(
   try {
     const { id } = await params;
     await connectDB();
-    const property = await Property.findByIdAndDelete(id);
+    const property = await Property.findOneAndDelete(buildQuery(id));
     if (!property) {
       return NextResponse.json({ error: "Property not found" }, { status: 404 });
     }

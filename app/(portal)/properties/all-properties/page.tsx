@@ -63,6 +63,7 @@ type PropertyStats = {
 
 type Property = {
   _id: string;
+  slug: string;
   propertyName: string;
   location: {
     city: string;
@@ -138,22 +139,11 @@ function OccupancyCell({ stats }: { stats: PropertyStats }) {
     return <span className="text-xs text-muted-foreground">No units</span>;
   }
 
-  const pct = Math.round((occupiedUnits / totalUnits) * 100);
-
   return (
-    <div className="flex flex-col gap-1 min-w-[90px]">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium tabular-nums">
-          {occupiedUnits} / {totalUnits}
-        </span>
-        <span className="text-[11px] text-muted-foreground">{pct}%</span>
-      </div>
-      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-        <div
-          className="h-full rounded-full bg-[#2D64C8] transition-all"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
+    <div className="flex flex-col gap-0.5">
+      <span className="text-xs font-medium tabular-nums">
+        {occupiedUnits} / {totalUnits}
+      </span>
       <span className="text-[11px] text-muted-foreground">{vacantUnits} vacant</span>
     </div>
   );
@@ -409,7 +399,7 @@ export default function PropertiesPage() {
           <Button
             variant="outline"
             className="gap-1.5 text-xs h-8 px-3 w-28 cursor-pointer hover:bg-white"
-            onClick={() => router.push(`/properties/${row.original._id}`)}
+            onClick={() => router.push(`/properties/${row.original.slug}`)}
           >
             Manage <ArrowRight className="size-3.5" />
           </Button>
@@ -498,7 +488,10 @@ export default function PropertiesPage() {
                   <TableRow
                     key={row.id}
                     className="hover:bg-muted/40 transition-colors cursor-pointer"
-                    onClick={() => router.push(`/properties/${row.original._id}`)}
+                    onClick={() => {
+                      router.push(`/properties/${row.original.slug}`);
+                      console.log(row);
+                    }}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell
@@ -548,7 +541,7 @@ export default function PropertiesPage() {
               <PropertyCard
                 key={row.id}
                 property={row.original}
-                onClick={() => router.push(`/properties/${row.original._id}`)}
+                onClick={() => router.push(`/properties/${row.original.slug}`)}
               />
             ))
           ) : (

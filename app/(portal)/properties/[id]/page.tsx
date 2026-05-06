@@ -252,7 +252,7 @@ export default function SinglePropertyPage() {
 
         {/* ── Top bar ── */}
         <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="flex items-start gap-3">
+          <div className="flex items-center gap-3">
             <Button
               variant="outline"
               size="icon"
@@ -261,7 +261,7 @@ export default function SinglePropertyPage() {
             >
               <ArrowLeft className="size-3.5" />
             </Button>
-            <div className="flex flex-col gap-1">
+            <div className="flex  gap-1">
               <h1 className="text-sm font-semibold text-foreground leading-tight">
                 {property.propertyName}
               </h1>
