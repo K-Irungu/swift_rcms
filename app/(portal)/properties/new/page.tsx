@@ -968,9 +968,9 @@ export default function NewPropertyPage() {
         throw new Error(error ?? "Unknown error");
       }
 
-      const { propertyId } = await res.json();
+      const { slug } = await res.json();
       toast.success("Property created successfully!");
-      router.push(`/properties/${propertyId}`);
+      router.push(`/properties/${slug}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create property.");
       console.error(err);

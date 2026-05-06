@@ -90,13 +90,16 @@ ownerId: {
   required: true,
 },
 
+    // Configuration template only — actual Unit records are created separately.
+    // Changes here do NOT auto-update existing Unit documents.
     unitTypes: {
       type: [UnitTypeSchema],
       required: true,
     },
 
     billing: {
-      rentDueDay: { type: Number, required: true },
+      // 1–28 keeps the day valid across all months including February
+      rentDueDay: { type: Number, required: true, min: 1, max: 28 },
       paymentMethods: { type: [String], required: true },
     },
       contacts: { type: [ContactSchema], default: [] },

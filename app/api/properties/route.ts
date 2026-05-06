@@ -8,6 +8,7 @@ import { Payment } from "@/lib/models/Payment";
 import { IUnitType } from "@/lib/models/Property";
 import path from "path";
 import fs from "fs/promises";
+import crypto from "crypto";
 import { getCurrentUser } from "@/lib/utils/auth";
 
 export async function GET() {
@@ -171,7 +172,7 @@ export async function GET() {
   }
 }
 
-function generateSlug(name: string): string {
+async function generateUniqueSlug(name: string): Promise<string> {
   const base = name
     .toLowerCase()
     .trim()
@@ -179,8 +180,14 @@ function generateSlug(name: string): string {
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
-  const suffix = Math.random().toString(36).slice(2, 6);
-  return `${base}-${suffix}`;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const suffix = crypto.randomBytes(3).toString("hex"); // 6 cryptographically random hex chars
+    const slug   = `${base}-${suffix}`;
+    const exists = await Property.exists({ slug });
+    if (!exists) return slug;
+  }
+  throw new Error("Could not generate a unique slug — please try again");
 }
 
 export async function POST(req: NextRequest) {
@@ -204,17 +211,35 @@ export async function POST(req: NextRequest) {
     const file = formData.get("coverPhoto") as File | null;
 
     if (file) {
-      const bytes = await file.arrayBuffer();
+      const bytes  = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      const filename = `${Date.now()}-${file.name}`;
+
+      // Validate by magic bytes — never trust client-supplied MIME type
+      const isJpeg = buffer[0] === 0xff && buffer[1] === 0xd8;
+      const isPng  = buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+      const isWebp = buffer.length > 12 && buffer.slice(8, 12).toString("ascii") === "WEBP";
+      if (!isJpeg && !isPng && !isWebp) {
+        return NextResponse.json(
+          { error: "Only JPEG, PNG, and WebP images are allowed" },
+          { status: 400 },
+        );
+      }
+      if (buffer.length > 5 * 1024 * 1024) {
+        return NextResponse.json({ error: "Image must be under 5 MB" }, { status: 400 });
+      }
+
+      const ext      = isJpeg ? "jpg" : isPng ? "png" : "webp";
+      const filename = `${Date.now()}-${file.name.replace(/\.[^.]+$/, "")}.${ext}`;
       const filepath = path.join(process.cwd(), "public/uploads", filename);
       await fs.writeFile(filepath, buffer);
       coverPhotoUrl = `/uploads/${filename}`;
     }
 
+    const slug = await generateUniqueSlug(step1.propertyName);
+
     const property = await Property.create({
       propertyName: step1.propertyName,
-      slug: generateSlug(step1.propertyName),
+      slug,
       description: step1.description,
       coverPhotoUrl,
       ownerId: user.userId,   // <-- add this
@@ -241,8 +266,7 @@ export async function POST(req: NextRequest) {
 
     });
 
-    console.log("Created property:", property);
-    return NextResponse.json({ success: true, propertyId: property._id });
+    return NextResponse.json({ success: true, slug: property.slug }, { status: 201 });
   } catch (error) {
     console.error(error);
     return NextResponse.json(

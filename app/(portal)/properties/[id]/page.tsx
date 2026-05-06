@@ -94,6 +94,7 @@ type Property = {
     rentDueDay: number;
     paymentMethods: string[];
   };
+  propertyManager?: { _id: string; fullName: string; email: string } | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -147,12 +148,6 @@ const COUNTRY_CODES: Record<string, string> = {
   Rwanda: "RW",
   Ethiopia: "ET",
 };
-
-const MOCK_PROPERTY_MANAGERS = [
-  { id: "pm-1", name: "Alice Kamau", email: "alice.kamau@realty.co" },
-  { id: "pm-2", name: "John Mwangi", email: "john.mwangi@realty.co" },
-  { id: "pm-3", name: "Grace Otieno", email: "grace.otieno@realty.co" },
-];
 
 // TODO: replace with authenticated session email
 const LANDLORD_EMAIL = "owner@property.com";
