@@ -226,6 +226,7 @@ export async function POST(req: NextRequest) {
         rentDueDay: Number(step4.rentDueDay),
         paymentMethods: step4.paymentMethods,
       },
+      contacts: [], // initialize empty contacts array
     });
 
     return NextResponse.json({ success: true, propertyId: property._id });

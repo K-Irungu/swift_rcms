@@ -16,6 +16,8 @@ function formatSegment(segment: string) {
     .replace(/\b\w/g, (c) => c.toUpperCase()) // capitalize each word
 }
 
+const PROPERTIES_STATIC = ["all-properties", "new"];
+
 export function BreadcrumbNav() {
   const pathname = usePathname()
 
@@ -23,11 +25,20 @@ export function BreadcrumbNav() {
   const segments = pathname.split("/").filter(Boolean)
 
   // Build cumulative paths: ["properties", "properties/all"]
-  const crumbs = segments.map((segment, index) => ({
-    label: formatSegment(segment),
+const crumbs = segments.map((segment, index) => {
+  const prev = segments[index - 1];
+
+  let label = formatSegment(segment);
+  if (prev === "properties" && !PROPERTIES_STATIC.includes(segment)) {
+    label = "Property Details";
+  }
+
+  return {
+    label,
     href: "/" + segments.slice(0, index + 1).join("/"),
     isLast: index === segments.length - 1,
-  }))
+  };
+});
 
   return (
     <Breadcrumb>

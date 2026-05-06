@@ -7,6 +7,8 @@ export interface IUnitType {
   depositAmount?: number;
 }
 
+
+
 export interface IProperty extends Document {
   propertyName: string;
   slug: string;
@@ -30,7 +32,11 @@ export interface IProperty extends Document {
     rentDueDay: number;
     paymentMethods: string[];
   };
-
+  contacts: {
+    role: string;
+    name: string;
+    phone?: string;
+  }[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -42,6 +48,15 @@ const UnitTypeSchema = new Schema<IUnitType>({
   depositAmount: { type: Number },
 });
 
+
+const ContactSchema = new Schema(
+  {
+    role:  { type: String, required: true, trim: true },
+    name:  { type: String, required: true, trim: true },
+    phone: { type: String, trim: true, default: "" },
+  },
+  { _id: true } // gives each contact its own _id automatically
+);
 const PropertySchema = new Schema<IProperty>(
   {
     propertyName: { type: String, required: true },
@@ -69,6 +84,8 @@ const PropertySchema = new Schema<IProperty>(
       rentDueDay: { type: Number, required: true },
       paymentMethods: { type: [String], required: true },
     },
+      contacts: { type: [ContactSchema], default: [] },
+
   },
   { timestamps: true },
 );
