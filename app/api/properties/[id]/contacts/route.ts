@@ -31,6 +31,8 @@ export async function POST(
     { returnDocument: "after", runValidators: true } // ← fixes the deprecation warning too
   );
 
+  console.log("Updated property:", property);
+
   if (!property) {
     return NextResponse.json({ error: "Property not found." }, { status: 404 });
   }

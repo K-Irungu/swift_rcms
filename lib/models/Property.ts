@@ -14,7 +14,7 @@ export interface IProperty extends Document {
   slug: string;
   description?: string;
   coverPhotoUrl?: string;
-
+ownerId: Schema.Types.ObjectId;
   location: {
     physicalAddress: string;
     country: string;
@@ -37,6 +37,11 @@ export interface IProperty extends Document {
     name: string;
     phone?: string;
   }[];
+  propertyManager: {
+  type: Schema.Types.ObjectId,
+  ref: "User",
+  default: null,
+}
   createdAt: Date;
   updatedAt: Date;
 }
@@ -74,6 +79,16 @@ const PropertySchema = new Schema<IProperty>(
         lng: { type: Number },
       },
     },
+    propertyManager: {
+  type: Schema.Types.ObjectId,
+  ref: "User",
+  default: null,
+},
+ownerId: {
+  type: Schema.Types.ObjectId,
+  ref: "User",
+  required: true,
+},
 
     unitTypes: {
       type: [UnitTypeSchema],

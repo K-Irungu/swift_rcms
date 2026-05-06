@@ -8,9 +8,15 @@ import { Payment } from "@/lib/models/Payment";
 import { IUnitType } from "@/lib/models/Property";
 import path from "path";
 import fs from "fs/promises";
+import { getCurrentUser } from "@/lib/utils/auth";
 
 export async function GET() {
   try {
+    
+      const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
     await connectDB();
 
     const now = new Date();
@@ -19,7 +25,7 @@ export async function GET() {
 
     const [properties, unitStats, revenueStats, arrearsStats, collectionStats] =
       await Promise.all([
-        Property.find().sort({ createdAt: -1 }).lean(),
+        Property.find({ ownerId: user.userId }).sort({ createdAt: -1 }).lean(),
 
         // Total and occupied unit counts per property
         Unit.aggregate([
@@ -179,6 +185,11 @@ function generateSlug(name: string): string {
 
 export async function POST(req: NextRequest) {
   try {
+      const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     await connectDB();
 
     const formData = await req.formData();
@@ -206,6 +217,7 @@ export async function POST(req: NextRequest) {
       slug: generateSlug(step1.propertyName),
       description: step1.description,
       coverPhotoUrl,
+      ownerId: user.userId,   // <-- add this
 
       location: {
         physicalAddress: step2.physicalAddress,
@@ -226,9 +238,10 @@ export async function POST(req: NextRequest) {
         rentDueDay: Number(step4.rentDueDay),
         paymentMethods: step4.paymentMethods,
       },
-      contacts: [], // initialize empty contacts array
+
     });
 
+    console.log("Created property:", property);
     return NextResponse.json({ success: true, propertyId: property._id });
   } catch (error) {
     console.error(error);

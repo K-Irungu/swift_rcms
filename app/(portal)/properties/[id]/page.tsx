@@ -27,6 +27,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -284,6 +292,9 @@ export default function SinglePropertyPage() {
   const currentMonth = format(new Date(), "MMMM yyyy");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [managers, setManagers] = useState<
+    { _id: string; fullName: string; email: string }[]
+  >([]);
 
   const [activeTab, setActiveTab] = useState<
     "overview" | "units" | "financials" | "maintenance"
@@ -327,6 +338,13 @@ export default function SinglePropertyPage() {
   });
 
   useEffect(() => {
+    fetch("/api/users?role=PROPERTY_MANAGER")
+      .then((r) => r.json())
+      .then(setManagers)
+      .catch(() => toast.error("Failed to load managers"));
+  }, []);
+
+  useEffect(() => {
     if (!id) return;
     async function load() {
       try {
@@ -344,6 +362,7 @@ export default function SinglePropertyPage() {
         const data = await propRes.json(); // ← parse once
         setProperty(data);
         setContacts(data.contacts ?? []);
+        setPropertyManagerId(data.propertyManager?._id ?? "");
 
         if (unitsRes.ok) setUnits(await unitsRes.json());
       } catch {
@@ -470,6 +489,23 @@ export default function SinglePropertyPage() {
     );
   }
 
+  async function handleManagerChange(managerId: string | null) {
+
+    const slug = id;
+    const res = await fetch(`/api/properties/${slug}/manager`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ managerId }),
+    });
+
+    if (!res.ok) {
+      toast.error("Failed to assign manager");
+      return;
+    }
+
+    toast.success(managerId ? "Manager assigned" : "Manager removed");
+  }
+
   async function handleCoverPhotoChange(
     e: React.ChangeEvent<HTMLInputElement>,
   ) {
@@ -509,9 +545,9 @@ export default function SinglePropertyPage() {
   }
 
   function openSheet() {
-      if (!property) return; 
-  const coords = property.location.coordinates ?? null; 
-    
+    if (!property) return;
+    const coords = property.location.coordinates ?? null;
+
     setDraft({
       propertyName: property.propertyName,
       description: property.description ?? "",
@@ -1320,10 +1356,73 @@ export default function SinglePropertyPage() {
                       </p>
                     )}
                   </div>
+                  {/* Cover Photo */}
+                  <div className="flex flex-col gap-1.5 pt-2 ">
+                    <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                      Cover Photo
+                    </span>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleCoverPhotoChange}
+                    />
+                    <div
+                      className="relative h-52 rounded-md overflow-hidden border cursor-pointer group bg-muted/20"
+                      onClick={() =>
+                        !uploadingPhoto && fileInputRef.current?.click()
+                      }
+                    >
+                      {property.coverPhotoUrl ? (
+                        <img
+                          src={property.coverPhotoUrl}
+                          alt={property.propertyName}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+                          <Building2 className="size-6 text-muted-foreground/30" />
+                          <p className="text-xs text-muted-foreground">
+                            No cover photo
+                          </p>
+                          <p className="text-[11px] text-muted-foreground/70">
+                            Click to upload
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Hover overlay */}
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 pointer-events-none">
+                        {uploadingPhoto ? (
+                          <Loader2 className="size-5 text-white animate-spin" />
+                        ) : (
+                          <>
+                            <Camera className="size-5 text-white" />
+                            <p className="text-xs text-white font-medium">
+                              {property.coverPhotoUrl
+                                ? "Change photo"
+                                : "Upload photo"}
+                            </p>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Uploading progress indicator */}
+                      {uploadingPhoto && (
+                        <div className="absolute inset-x-0 bottom-0 h-0.5 bg-white/20">
+                          <div className="h-full bg-white animate-pulse" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground/70">
+                      JPG, PNG or WebP · max 5 MB
+                    </p>
+                  </div>
                 </div>
 
                 {/* ── 2. Location ── */}
-                <div className="bg-white rounded-lg border p-4 flex flex-col gap-4">
+                <div className="bg-white rounded-lg border p-4 flex flex-col  gap-4 ">
                   <SectionHeader title="Location" />
 
                   {/* Address block */}
@@ -1340,7 +1439,7 @@ export default function SinglePropertyPage() {
                   </div>
 
                   {/* City / County / Country grid */}
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 ">
                     {[
                       { label: "City", value: property.location.city },
                       { label: "County", value: property.location.county },
@@ -1359,10 +1458,13 @@ export default function SinglePropertyPage() {
 
                   {/* Map or placeholder */}
                   {hasCoords ? (
-                    <div className="flex flex-col gap-2 flex-1">
+                    <div className="flex flex-col gap-2 flex-1 justify-end">
                       <APIProvider
                         apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}
                       >
+                        <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                          Map
+                        </span>
                         <div className="rounded-md overflow-hidden border h-52">
                           <Map
                             defaultCenter={property.location.coordinates!}
@@ -1429,37 +1531,41 @@ export default function SinglePropertyPage() {
                     <Select
                       value={propertyManagerId}
                       onValueChange={(v) => {
-                        if (v === "__create__") {
-                          toast("Manager creation coming soon.");
+                        if (v === "__remove__") {
+                          setPropertyManagerId("");
+                          handleManagerChange(null);
                           return;
                         }
                         setPropertyManagerId(v);
+                        handleManagerChange(v);
                       }}
                     >
                       <SelectTrigger className="h-8 text-xs border-border rounded-md focus:ring-0 focus-visible:ring-0 w-full">
                         <SelectValue placeholder="Not assigned" />
                       </SelectTrigger>
                       <SelectContent>
-                        {MOCK_PROPERTY_MANAGERS.map((pm) => (
+                        {managers.map((m) => (
                           <SelectItem
-                            key={pm.id}
-                            value={pm.id}
+                            key={m._id}
+                            value={m._id}
                             className="text-xs cursor-pointer"
                           >
                             <div className="flex flex-col">
-                              <span className="font-medium">{pm.name}</span>
+                              <span className="font-medium">{m.fullName}</span>
                               <span className="text-muted-foreground text-[11px]">
-                                {pm.email}
+                                {m.email}
                               </span>
                             </div>
                           </SelectItem>
                         ))}
-                        <SelectItem
-                          value="__create__"
-                          className="text-xs text-[#2D64C8] font-medium cursor-pointer"
-                        >
-                          + Add property manager
-                        </SelectItem>
+                        {propertyManagerId && (
+                          <SelectItem
+                            value="__remove__"
+                            className="text-xs text-destructive font-medium cursor-pointer"
+                          >
+                            Remove manager
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -1540,6 +1646,7 @@ export default function SinglePropertyPage() {
                 )}
 
                 {/* ── Contact list or empty state ── */}
+                {/* ── Contact list or empty state ── */}
                 {contacts.length === 0 && !addingContact ? (
                   <div className="flex flex-col items-center justify-center py-10 gap-1.5">
                     <Phone className="size-5 text-muted-foreground/30" />
@@ -1551,46 +1658,72 @@ export default function SinglePropertyPage() {
                     </p>
                   </div>
                 ) : contacts.length > 0 ? (
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {contacts.map((c) => (
-                      <div
-                        key={c._id}
-                        className="flex items-center justify-between gap-3 rounded-lg border bg-muted/20 px-3 py-2.5"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="size-8 rounded-full bg-[#2D64C8]/10 flex items-center justify-center shrink-0">
-                            <User className="size-3.5 text-[#2D64C8]" />
-                          </div>
-
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-xs font-semibold text-foreground truncate">
+                  <div className="rounded-lg border overflow-hidden">
+                    <Table style={{ tableLayout: "fixed", width: "100%" }}>
+                      <TableHeader className="bg-muted/50">
+                        <TableRow>
+                          <TableHead className="text-xs font-semibold text-muted-foreground tracking-wide w-[30%]">
+                            Role
+                          </TableHead>
+                          <TableHead className="text-xs font-semibold text-muted-foreground tracking-wide w-[25%]">
+                            Name
+                          </TableHead>
+                          <TableHead className="text-xs font-semibold text-muted-foreground tracking-wide w-[35%]">
+                            Phone
+                          </TableHead>
+                          <TableHead className="w-[10%]" />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {contacts.map((c) => (
+                          <TableRow
+                            key={c._id}
+                            className="hover:bg-muted/40 transition-colors"
+                          >
+                            <TableCell className="text-xs">
+                              <div className="flex items-center gap-2">
+                                {/* <div className="size-7 rounded-full bg-[#2D64C8]/10 flex items-center justify-center shrink-0">
+                                  <User className="size-3.5 text-[#2D64C8]" />
+                                </div> */}
+                                <span className="font-medium truncate">
+                                  {c.role}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
                               {c.name}
-                            </span>
-                            <span className="text-[11px] text-muted-foreground">
-                              {c.role}
-                            </span>
-                            {c.phone && (
-                              <a
-                                href={`tel:${c.phone}`}
-                                className="text-[11px] text-[#2D64C8] hover:underline flex items-center gap-0.5 mt-0.5 w-fit"
-                              >
-                                <Phone className="size-2.5" />
-                                {c.phone}
-                              </a>
-                            )}
-                          </div>
-                        </div>
-
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-7 shrink-0 text-muted-foreground hover:text-destructive cursor-pointer"
-                          onClick={() => handleDeleteContact(c._id)}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </div>
-                    ))}
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {c.phone ? (
+                                <a
+                                  href={`tel:${c.phone}`}
+                                  className="text-[#2D64C8] hover:underline flex items-center gap-1 w-fit"
+                                >
+                                  <Phone className="size-3" />
+                                  {c.phone}
+                                </a>
+                              ) : (
+                                <span className="text-muted-foreground/50">
+                                  —
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex justify-end">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-7 text-muted-foreground hover:text-destructive cursor-pointer"
+                                  onClick={() => handleDeleteContact(c._id)}
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
                 ) : null}
               </div>

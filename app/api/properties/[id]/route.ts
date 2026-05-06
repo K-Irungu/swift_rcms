@@ -16,7 +16,8 @@ export async function GET(
   try {
     const { id } = await params;
     await connectDB();
-    const property = await Property.findOne(buildQuery(id));
+    const property = await Property.findOne(buildQuery(id)).populate("propertyManager", "_id fullName email");
+;
     if (!property) {
       return NextResponse.json(
         { error: "Property not found" },
