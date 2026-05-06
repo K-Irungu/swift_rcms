@@ -333,7 +333,7 @@ export default function PropertiesPage() {
             <span className="text-muted-foreground">{label || "—"}</span>
             {coords && (
               <span className="text-[11px] font-mono text-muted-foreground/70">
-                {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
+                Lat. {coords.lat.toFixed(4)}, Long. {coords.lng.toFixed(4)}
               </span>
             )}
           </div>
