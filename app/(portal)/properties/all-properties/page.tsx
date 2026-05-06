@@ -69,6 +69,7 @@ type Property = {
     county: string;
     country: string;
     physicalAddress: string;
+    coordinates?: { lat: number; lng: number };
   };
   unitTypes: { _id: string; name: string; count: number; rentAmount: number }[];
   createdAt: string;
@@ -323,9 +324,21 @@ export default function PropertiesPage() {
         </span>
       ),
       accessorFn: (row) => locationString(row),
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">{locationString(row.original) || "—"}</span>
-      ),
+      cell: ({ row }) => {
+        const loc = row.original.location;
+        const label = locationString(row.original);
+        const coords = loc.coordinates;
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className="text-muted-foreground">{label || "—"}</span>
+            {coords && (
+              <span className="text-[11px] font-mono text-muted-foreground/70">
+                {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       id: "units",
@@ -390,7 +403,7 @@ export default function PropertiesPage() {
     {
       id: "actions",
       size: 100,
-      header: () => <div className="text-right">Actions</div>,
+      header: () => <div className="text-left">Actions</div>,
       cell: ({ row }) => (
         <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
           <Button
