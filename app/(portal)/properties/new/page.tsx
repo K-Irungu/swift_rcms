@@ -484,14 +484,14 @@ function Step2({
           />
         </Field>
 
-        <Field label="Neighbourhood">
+        {/* <Field label="Neighbourhood">
           <Input
             className={inputCls()}
             placeholder="e.g. Westlands, Kilimani"
             value={data.location}
             onChange={(e) => onChange({ ...data, location: e.target.value })}
           />
-        </Field>
+        </Field> */}
       </div>
 
       <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
@@ -943,6 +943,21 @@ export default function NewPropertyPage() {
       formData.append("step3", JSON.stringify(step3));
       formData.append("step4", JSON.stringify(step4));
 
+      console.log("Submitting form data:", {
+        step1: {
+          propertyName: step1.propertyName,
+          description: step1.description,
+          coverPhoto: step1.coverPhoto ? {
+            name: step1.coverPhoto.name,
+            type: step1.coverPhoto.type,
+            size: step1.coverPhoto.size,
+          } : null,
+        },
+        step2,
+        step3,
+        step4,
+      });
+      
       const res = await fetch("/api/properties", {
         method: "POST",
         body: formData,
@@ -955,7 +970,7 @@ export default function NewPropertyPage() {
 
       const { propertyId } = await res.json();
       toast.success("Property created successfully!");
-      router.push(`/portal/properties/${propertyId}`);
+      router.push(`/properties/${propertyId}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create property.");
       console.error(err);
@@ -967,6 +982,14 @@ export default function NewPropertyPage() {
   return (
     <div className="flex flex-col bg-[#F0F4F8] min-h-full w-full">
       <div className="p-4 flex flex-col gap-4 w-full">
+          <Button
+          variant="outline"
+          className="h-8 text-xs gap-1.5 cursor-pointer"
+          onClick={() => router.push("/properties/all-properties")}
+        >
+          <ArrowLeft className="size-3.5" /> All Properties
+        </Button>
+
         <StepIndicator current={step} steps={WIZARD_STEPS} />
 
         <div className="rounded-lg border bg-white p-4 flex flex-col gap-4">

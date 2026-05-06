@@ -1,31 +1,74 @@
-import mongoose, { Schema, Document } from 'mongoose'
+import { Schema, Document, models, model } from "mongoose";
 
-export enum PropertyType {
-  APARTMENT  = 'APARTMENT',
-  HOUSE      = 'HOUSE',
-  COMMERCIAL = 'COMMERCIAL',
+export interface IUnitType {
+  name: string;
+  count: number;
+  rentAmount: number;
+  depositAmount?: number;
 }
 
 export interface IProperty extends Document {
-  ownerId:      mongoose.Types.ObjectId
-  propertyName: string
-  address:      string
-  city:         string
-  propertyType: PropertyType
+  propertyName: string;
+  description?: string;
+  coverPhotoUrl?: string;
+
+  location: {
+    physicalAddress: string;
+    country: string;
+    county: string;
+    city: string;
+    coordinates?: {
+      lat: number;
+      lng: number;
+    };
+  };
+
+  unitTypes: IUnitType[];
+
+  billing: {
+    rentDueDay: number;
+    paymentMethods: string[];
+  };
+
+  createdAt: Date;
+  updatedAt: Date;
 }
+
+const UnitTypeSchema = new Schema<IUnitType>({
+  name: { type: String, required: true },
+  count: { type: Number, required: true },
+  rentAmount: { type: Number, required: true },
+  depositAmount: { type: Number },
+});
 
 const PropertySchema = new Schema<IProperty>(
   {
-    ownerId:      { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    propertyName: { type: String, required: true, trim: true },
-    address:      { type: String, required: true },
-    city:         { type: String, required: true },
-    propertyType: { type: String, enum: Object.values(PropertyType), required: true },
+    propertyName: { type: String, required: true },
+    description: { type: String },
+    coverPhotoUrl: { type: String },
+
+    location: {
+      physicalAddress: { type: String, required: true },
+      country: { type: String, required: true },
+      county: { type: String, required: true },
+      city: { type: String, required: true },
+      coordinates: {
+        lat: { type: Number },
+        lng: { type: Number },
+      },
+    },
+
+    unitTypes: {
+      type: [UnitTypeSchema],
+      required: true,
+    },
+
+    billing: {
+      rentDueDay: { type: Number, required: true },
+      paymentMethods: { type: [String], required: true },
+    },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-PropertySchema.index({ ownerId: 1 })
-
-export const Property = mongoose.models.Property ||
-  mongoose.model<IProperty>('Property', PropertySchema)
+export default models.Property || model<IProperty>("Property", PropertySchema);
