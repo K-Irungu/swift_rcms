@@ -7,11 +7,9 @@ import {
   ArrowLeft,
   MapPin,
   Building2,
-  Calendar,
   CreditCard,
   KeyRound,
   BedDouble,
-  CircleDollarSign,
   Edit2,
   Plus,
 } from "lucide-react";
@@ -79,25 +77,10 @@ function ordinal(n: number) {
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
 
-function StatCard({
-  label,
-  value,
-  sub,
-  icon: Icon,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  icon: React.ComponentType<{ className?: string }>;
-}) {
+function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="bg-white rounded-lg border p-4 flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <div className="size-7 rounded-md bg-[#2D64C8]/10 flex items-center justify-center">
-          <Icon className="size-3.5 text-[#2D64C8]" />
-        </div>
-      </div>
+      <span className="text-xs text-muted-foreground">{label}</span>
       <span className="text-lg font-semibold text-foreground tabular-nums">{value}</span>
       {sub && <span className="text-[11px] text-muted-foreground">{sub}</span>}
     </div>
@@ -323,7 +306,6 @@ export default function SinglePropertyPage() {
             label="Unit Types"
             value={String(property.unitTypes.length)}
             sub={`${totalUnits} total unit${totalUnits !== 1 ? "s" : ""}`}
-            icon={Building2}
           />
           <StatCard
             label="Occupancy"
@@ -337,19 +319,16 @@ export default function SinglePropertyPage() {
                 ? `${vacantCount} vacant`
                 : "No units added yet"
             }
-            icon={KeyRound}
           />
           <StatCard
             label="Rent Range"
             value={rentDisplay}
             sub="per month"
-            icon={CircleDollarSign}
           />
           <StatCard
             label="Rent Due"
             value={ordinal(property.billing.rentDueDay)}
             sub="of every month"
-            icon={Calendar}
           />
         </div>
 
