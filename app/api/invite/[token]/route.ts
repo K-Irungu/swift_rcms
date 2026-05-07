@@ -8,6 +8,7 @@ import { getCurrentUser } from "@/lib/utils/auth";
 import { emailService } from "@/lib/services/email.service";
 import { smsService } from "@/lib/services/sms.service";
 import { successResponse, errorResponse } from "@/lib/utils/ApiResponse";
+import inviteEmitter from "@/lib/inviteEmitter";
 
 // GET /api/invite/[token] — fetch invite details for the acceptance page
 export async function GET(
@@ -81,6 +82,11 @@ export async function POST(
     const manager  = invite.managerId  as any;
     const landlord = invite.landlordId as any;
     const property = invite.propertyId as any;
+
+    inviteEmitter.emit(`invite:accepted:${property._id}`, {
+      managerId:   manager._id.toString(),
+      managerName: manager.fullName,
+    });
 
     // ── Notify manager (best-effort) ──
     emailService

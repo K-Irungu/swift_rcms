@@ -83,6 +83,25 @@ export function OverviewTab({
     fetchPendingInvite();
   }, []);
 
+  useEffect(() => {
+    if (!pendingInvite) return;
+
+    const es = new EventSource(`/api/properties/${slug}/manager/invite/stream`);
+
+    es.addEventListener("manager-assigned", (e: MessageEvent) => {
+      const { managerId, managerName } = JSON.parse(e.data);
+      es.close();
+      fetchManagers();
+      setPropertyManagerId(managerId);
+      setPendingInvite(null);
+      toast.success(`${managerName} has accepted the invitation`);
+    });
+
+    es.onerror = () => es.close();
+
+    return () => es.close();
+  }, [pendingInvite]);
+
   async function fetchManagers() {
     setManagersLoading(true);
     try {
