@@ -4,11 +4,12 @@ import { connectDB } from "@/lib/db";
 import Property from "@/lib/models/Property";
 import { User, Role } from "@/lib/models/User";
 import { ManagerInvite } from "@/lib/models/ManagerInvite";
-import { Notification, NotificationType } from "@/lib/models/Notificaiton";
+import { NotificationType } from "@/lib/models/Notificaiton";
 import { getCurrentUser } from "@/lib/utils/auth";
 import { emailService } from "@/lib/services/email.service";
 import { smsService } from "@/lib/services/sms.service";
 import { successResponse, errorResponse } from "@/lib/utils/ApiResponse";
+import { createNotification } from "@/lib/utils/createNotification";
 
 // GET /api/properties/[id]/manager/invite — fetch pending invite for this property
 export async function GET(
@@ -35,8 +36,8 @@ export async function GET(
     if (!invite) return successResponse(null);
 
     return successResponse({
-      managerName:  (invite.managerId as any).fullName,
-      managerEmail: (invite.managerId as any).email,
+      managerName:  (invite.managerId ).fullName,
+      managerEmail: (invite.managerId ).email,
       expiresAt:    invite.expiresAt,
     });
   } catch (error) {
@@ -169,12 +170,15 @@ export async function POST(
     }
 
     // ── In-app notification (best-effort) ──
-    Notification.create({
-      userId:  manager._id,
+    createNotification({
+      userId:  manager._id.toString(),
       type:    NotificationType.MANAGER_INVITE,
       title:   "Property Manager Invitation",
       message: `${authUser.fullName} has invited you to manage ${property.propertyName}. Tap to review and accept.`,
+      link:    acceptUrl,
     }).catch((err) => console.error("In-app notification failed:", err));
+
+    
 
     return successResponse({ token, expiresAt }, "Invitation sent successfully", 201);
   } catch (error) {

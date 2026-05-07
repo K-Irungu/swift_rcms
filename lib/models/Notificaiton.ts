@@ -7,6 +7,7 @@ export enum NotificationType {
   MAINTENANCE_UPDATE   = 'MAINTENANCE_UPDATE',
   MANAGER_INVITE       = 'MANAGER_INVITE',
   MANAGER_ASSIGNED     = 'MANAGER_ASSIGNED',
+  MANAGER_REMOVED      = 'MANAGER_REMOVED',
   GENERAL              = 'GENERAL',
 }
 
@@ -16,6 +17,7 @@ export interface INotification extends Document {
   title:   string
   message: string
   isRead:  boolean
+  link?:   string
 }
 
 const NotificationSchema = new Schema<INotification>(
@@ -25,6 +27,7 @@ const NotificationSchema = new Schema<INotification>(
     title:   { type: String, required: true },
     message: { type: String, required: true },
     isRead:  { type: Boolean, default: false },
+    link:    { type: String },
   },
   { timestamps: true }
 )

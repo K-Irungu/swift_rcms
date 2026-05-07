@@ -3,12 +3,13 @@ import { connectDB } from "@/lib/db";
 import { ManagerInvite } from "@/lib/models/ManagerInvite";
 import "@/lib/models/User";
 import Property from "@/lib/models/Property";
-import { Notification, NotificationType } from "@/lib/models/Notificaiton";
+import { NotificationType } from "@/lib/models/Notificaiton";
 import { getCurrentUser } from "@/lib/utils/auth";
 import { emailService } from "@/lib/services/email.service";
 import { smsService } from "@/lib/services/sms.service";
 import { successResponse, errorResponse } from "@/lib/utils/ApiResponse";
 import inviteEmitter from "@/lib/inviteEmitter";
+import { createNotification } from "@/lib/utils/createNotification";
 
 // GET /api/invite/[token] — fetch invite details for the acceptance page
 export async function GET(
@@ -116,8 +117,8 @@ export async function POST(
         .catch((err) => console.error("Manager confirmation SMS failed:", err));
     }
 
-    Notification.create({
-      userId:  manager._id,
+    createNotification({
+      userId:  manager._id.toString(),
       type:    NotificationType.MANAGER_ASSIGNED,
       title:   "Assignment Confirmed",
       message: `You are now managing ${property.propertyName}.`,
@@ -150,8 +151,8 @@ export async function POST(
         .catch((err) => console.error("Landlord confirmation SMS failed:", err));
     }
 
-    Notification.create({
-      userId:  landlord._id,
+    createNotification({
+      userId:  landlord._id.toString(),
       type:    NotificationType.MANAGER_ASSIGNED,
       title:   "Invitation Accepted",
       message: `${manager.fullName} has accepted your invitation and is now managing ${property.propertyName}.`,
