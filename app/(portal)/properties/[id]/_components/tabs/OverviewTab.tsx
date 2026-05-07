@@ -103,16 +103,32 @@ export function OverviewTab({
     .join(", ");
 
   async function handleManagerChange(managerId: string | null) {
-    const res = await fetch(`/api/properties/${slug}/manager`, {
-      method: "PUT",
+    // Removal bypasses the invite flow — immediate
+    if (managerId === null) {
+      const res = await fetch(`/api/properties/${slug}/manager`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ managerId: null }),
+      });
+      if (!res.ok) {
+        toast.error("Failed to remove manager");
+        return;
+      }
+      toast.success("Manager removed");
+      return;
+    }
+
+    // Assignment goes through invite flow
+    const res = await fetch(`/api/properties/${slug}/manager/invite`, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ managerId }),
     });
     if (!res.ok) {
-      toast.error("Failed to assign manager");
+      toast.error("Failed to send invitation");
       return;
     }
-    toast.success(managerId ? "Manager assigned" : "Manager removed");
+    toast.success("Invitation sent — awaiting manager's acceptance");
   }
 
   async function handleCoverPhotoChange(
