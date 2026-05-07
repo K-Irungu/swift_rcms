@@ -20,6 +20,7 @@ export const emailService = {
   },
 
   async sendOtp(to: string, otp: string) {
+    console.log(`Sending OTP ${otp} to ${to}`); // Log OTP for testing purposes
     const html = `
       <div style="font-family:sans-serif;max-width:480px;margin:auto">
         <h2>Your verification code</h2>
@@ -27,6 +28,7 @@ export const emailService = {
         <p>This code expires in <strong>5 minutes</strong>. Do not share it with anyone.</p>
       </div>
     `;
+
     return this.send(to, "Your OTP Code", html);
   },
 

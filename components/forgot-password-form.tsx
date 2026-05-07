@@ -34,13 +34,13 @@ export function ForgotPasswordForm({
     try {
       // Step 1: Extract email from form
       const formData = new FormData(e.currentTarget);
-      const email    = formData.get("email") as string;
+      const email = formData.get("email") as string;
 
       // Step 2: Send reset OTP request to the API
       const res = await fetch("/api/auth/forgot-password", {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ email }),
+        body: JSON.stringify({ email }),
       });
 
       const data = await res.json();
@@ -50,7 +50,7 @@ export function ForgotPasswordForm({
       }
 
       // Step 3: Redirect to OTP verification with email as query param
-      toast.success("OTP sent to your email.");
+      toast.success(data.message);
 
       const params = new URLSearchParams({ mode: "reset", email });
       router.push(`/auth/verify-otp?${params.toString()}`);
@@ -74,7 +74,6 @@ export function ForgotPasswordForm({
       {...props}
     >
       <FieldGroup>
-
         {/* Header */}
         <div className="flex flex-col items-start gap-4 text-left">
           <Link
@@ -86,8 +85,8 @@ export function ForgotPasswordForm({
           </Link>
           <h1 className="text-3xl font-bold text-white">Forgot Password</h1>
           <p className="text-base text-[#B0BDD0]">
-            Enter your registered email address and we&apos;ll send you a code to
-            reset your password
+            Enter your registered email address and we&apos;ll send you a code
+            to reset your password
           </p>
         </div>
 
@@ -124,7 +123,6 @@ export function ForgotPasswordForm({
             )}
           </Button>
         </Field>
-
       </FieldGroup>
     </form>
   );

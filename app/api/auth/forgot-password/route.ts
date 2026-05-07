@@ -24,12 +24,15 @@ export const POST = asyncHandler(async (req: NextRequest) => {
   await connectDB()
   await connectRedis()
 
+
+
   // Step 1: Validate request body
   const body        = await req.json()
   const { email }   = validate(schema, body)
 
   // Step 2: Check the email exists in the database
   const user = await User.findOne({ email })
+
   if (!user) {
     // Return success anyway to prevent email enumeration attacks
     return successResponse(null, "If that email is registered, an OTP has been sent.")
@@ -53,6 +56,7 @@ export const POST = asyncHandler(async (req: NextRequest) => {
     JSON.stringify({ otpHash, attempts: 0, userId: user._id.toString() }),
     { EX: 300 },
   )
+
 
   // Step 6: Send OTP to the user's email
   await emailService.sendOtp(email, otp)
