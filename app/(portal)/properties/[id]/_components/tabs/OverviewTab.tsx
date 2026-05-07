@@ -215,9 +215,9 @@ export function OverviewTab({
       {/* Row 1: Property Details + Location */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* Property Details */}
-        <div className="bg-white rounded-lg border p-4 flex flex-col gap-4">
+        <div className="bg-white rounded-lg border p-4 flex flex-col gap-4 justify-between">
           <SectionHeader title="Property Details" />
-          <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col gap-0.5 ">
             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
               Property Name
             </span>
@@ -239,7 +239,7 @@ export function OverviewTab({
               </p>
             )}
           </div>
-          <div className="flex flex-col gap-1.5 pt-2">
+          <div className="flex flex-col gap-1.5 pt-2 ">
             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
               Cover Photo
             </span>
