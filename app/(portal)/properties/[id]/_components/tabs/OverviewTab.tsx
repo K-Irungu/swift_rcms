@@ -97,7 +97,9 @@ export function OverviewTab({
       toast.success(`${managerName} has accepted the invitation`);
     });
 
-    es.onerror = () => es.close();
+    es.onerror = () => {
+      if (es.readyState === EventSource.CLOSED) es.close();
+    };
 
     return () => es.close();
   }, [pendingInvite]);
