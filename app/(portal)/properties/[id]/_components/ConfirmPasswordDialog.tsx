@@ -18,16 +18,18 @@ import toast from "react-hot-toast";
 type Props = {
   open: boolean;
   managerName: string;
-  onConfirmed: () => void;
+  onConfirmed: () => Promise<void>;
   onCancel: () => void;
 };
 
 export function ConfirmPasswordDialog({ open, managerName, onConfirmed, onCancel }: Props) {
   const [password, setPassword] = useState("");
   const [verifying, setVerifying] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
   function handleCancel() {
+    if (verifying || submitting) return;
     setPassword("");
     setError("");
     onCancel();
@@ -50,19 +52,31 @@ export function ConfirmPasswordDialog({ open, managerName, onConfirmed, onCancel
       const json = await res.json();
 
       if (!res.ok || !json.data?.verified) {
-        setError(json.message || "Failed to verify password");
+        setError(json.message || "Incorrect password. Please try again.");
         return;
       }
 
       setPassword("");
       setError("");
-      onConfirmed();
+      setVerifying(false);
+
+      // Keep dialog open with a sending state while the invite API call runs
+      setSubmitting(true);
+      try {
+        await onConfirmed();
+      } catch {
+        toast.error("Something went wrong. Please try again.");
+      } finally {
+        setSubmitting(false);
+      }
     } catch {
       toast.error("An error occurred while verifying your password. Please try again.");
     } finally {
       setVerifying(false);
     }
   }
+
+  const busy = verifying || submitting;
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleCancel(); }}>
@@ -73,8 +87,9 @@ export function ConfirmPasswordDialog({ open, managerName, onConfirmed, onCancel
             <DialogTitle className="text-sm font-semibold">Confirm your identity</DialogTitle>
           </div>
           <DialogDescription className="text-xs text-muted-foreground">
-            You are about to assign <span className="font-medium text-foreground">{managerName}</span> as
-            property manager for this property. Enter your password to continue.
+            You are about to assign{" "}
+            <span className="font-medium text-foreground">{managerName}</span> as property
+            manager for this property. Enter your password to continue.
           </DialogDescription>
         </DialogHeader>
 
@@ -86,6 +101,7 @@ export function ConfirmPasswordDialog({ open, managerName, onConfirmed, onCancel
               className="h-8 text-xs"
               placeholder="Enter your password"
               value={password}
+              disabled={submitting}
               onChange={(e) => {
                 setPassword(e.target.value);
                 setError("");
@@ -95,22 +111,34 @@ export function ConfirmPasswordDialog({ open, managerName, onConfirmed, onCancel
             {error && <p className="text-[11px] text-destructive">{error}</p>}
           </div>
 
+          {submitting && (
+            <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+              <Loader2 className="size-3 animate-spin" /> Sending invitation…
+            </p>
+          )}
+
           <DialogFooter className="gap-2 mt-1">
             <Button
               type="button"
               variant="ghost"
               className="h-8 text-xs cursor-pointer"
               onClick={handleCancel}
-              disabled={verifying}
+              disabled={busy}
             >
               Cancel
             </Button>
             <Button
               type="submit"
               className="h-8 text-xs cursor-pointer bg-[#2D64C8] hover:bg-[#2D64C8]/90"
-              disabled={!password || verifying}
+              disabled={!password || busy}
             >
-              {verifying ? <Loader2 className="size-3 animate-spin" /> : "Confirm"}
+              {verifying ? (
+                <><Loader2 className="size-3 animate-spin" /> Verifying…</>
+              ) : submitting ? (
+                <><Loader2 className="size-3 animate-spin" /> Sending…</>
+              ) : (
+                "Confirm"
+              )}
             </Button>
           </DialogFooter>
         </form>

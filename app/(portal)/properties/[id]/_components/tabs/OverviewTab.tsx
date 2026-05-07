@@ -69,7 +69,6 @@ export function OverviewTab({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingManagerId, setPendingManagerId] = useState<string | null>(null);
 
-
   useEffect(() => {
     fetchManagers();
   }, []);
@@ -124,11 +123,15 @@ export function OverviewTab({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ managerId }),
     });
-    if (!res.ok) {
-      toast.error("Failed to send invitation");
-      return;
+
+    const invitationResponse = await res.json();
+
+    if (!res.ok || invitationResponse.success !== true) {
+      toast.error(invitationResponse.message || "Failed to send invite");
+      throw new Error(invitationResponse.message || "Failed to send invite");
     }
-    toast.success("Invitation sent — awaiting manager's acceptance");
+
+    toast.success(invitationResponse.message || "Invitation sent — awaiting manager's acceptance");
   }
 
   async function handleCoverPhotoChange(
@@ -425,7 +428,9 @@ export function OverviewTab({
             <div className="shrink-0 w-full sm:w-56">
               <Select
                 value={propertyManagerId}
-                onOpenChange={(open) => { if (open) fetchManagers(); }}
+                onOpenChange={(open) => {
+                  if (open) fetchManagers();
+                }}
                 onValueChange={(v) => {
                   if (v === "__remove__") {
                     setPropertyManagerId("");
@@ -436,8 +441,11 @@ export function OverviewTab({
                 }}
               >
                 <SelectTrigger className="h-8 text-xs border-border rounded-md focus:ring-0 focus-visible:ring-0 w-full">
-                  <SelectValue placeholder={managersLoading? "Loading..." : "Not assigned"} />
-
+                  <SelectValue
+                    placeholder={
+                      managersLoading ? "Loading..." : "Not assigned"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent className="p-1">
                   {managers.map((m) => (
@@ -606,11 +614,13 @@ export function OverviewTab({
 
       <ConfirmPasswordDialog
         open={!!pendingManagerId}
-        managerName={managers.find((m) => m._id === pendingManagerId)?.fullName ?? ""}
-        onConfirmed={() => {
+        managerName={
+          managers.find((m) => m._id === pendingManagerId)?.fullName ?? ""
+        }
+        onConfirmed={async () => {
           if (!pendingManagerId) return;
+          await handleManagerChange(pendingManagerId);
           setPropertyManagerId(pendingManagerId);
-          handleManagerChange(pendingManagerId);
           setPendingManagerId(null);
         }}
         onCancel={() => setPendingManagerId(null)}

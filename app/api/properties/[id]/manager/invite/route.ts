@@ -11,7 +11,7 @@ import { smsService } from "@/lib/services/sms.service";
 import { successResponse, errorResponse } from "@/lib/utils/ApiResponse";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://swiftrcms.app";
-const INVITE_TTL_HOURS = 48;
+const INVITE_TTL_HOURS = parseInt(process.env.INVITE_TTL_HOURS || "48", 10);
 
 export async function POST(
   req: NextRequest,
@@ -61,35 +61,41 @@ export async function POST(
 
     const acceptUrl = `${APP_URL}/invite/${token}`;
 
-    // ── Email ──
-    await emailService.send(
-      manager.email,
-      `You've been invited to manage ${property.propertyName}`,
-      `
-        <div style="font-family:sans-serif;max-width:520px;margin:auto">
-          <h2>Property Manager Invitation</h2>
-          <p>Hi ${manager.fullName},</p>
-          <p>
-            <strong>${authUser.fullName}</strong> has invited you to manage
-            <strong>${property.propertyName}</strong> on Swift RCMS.
-          </p>
-          <p>This invitation expires in ${INVITE_TTL_HOURS} hours.</p>
-          <a
-            href="${acceptUrl}"
-            style="display:inline-block;margin-top:16px;padding:10px 24px;background:#2D64C8;color:#fff;border-radius:6px;text-decoration:none;font-weight:600"
-          >
-            Accept Invitation
-          </a>
-          <p style="margin-top:24px;font-size:12px;color:#888">
-            If you did not expect this invitation, you can ignore this email.
-          </p>
-        </div>
-      `,
-    ).catch((err) => console.error("Email failed:", err));
+    // ── Email (hard requirement — clean up invite if it fails) ──
+    try {
+      await emailService.sendNotification(
+        manager.email,
+        `You've been invited to manage ${property.propertyName}`,
+        `
+          <div style="font-family:sans-serif;max-width:520px;margin:auto">
+            <h2>Property Manager Invitation</h2>
+            <p>Hi ${manager.fullName},</p>
+            <p>
+              <strong>${authUser.fullName}</strong> has invited you to manage
+              <strong>${property.propertyName}</strong> on Swift RCMS.
+            </p>
+            <p>This invitation expires in ${INVITE_TTL_HOURS} hours.</p>
+            <a
+              href="${acceptUrl}"
+              style="display:inline-block;margin-top:16px;padding:10px 24px;background:#2D64C8;color:#fff;border-radius:6px;text-decoration:none;font-weight:600"
+            >
+              Accept Invitation
+            </a>
+            <p style="margin-top:24px;font-size:12px;color:#888">
+              If you did not expect this invitation, you can ignore this email.
+            </p>
+          </div>
+        `,
+      );
+    } catch (emailErr) {
+      console.error("Email failed:", emailErr);
+      await ManagerInvite.deleteOne({ token });
+      return errorResponse("Failed to send invitation email. Please try again.", 502);
+    }
 
-    // ── SMS ──
+    // ── SMS (best-effort, does not block invite) ──
     if (manager.phoneNumber) {
-      await smsService
+      smsService
         .send(
           manager.phoneNumber,
           `Hi ${manager.fullName}, ${authUser.fullName} has invited you to manage ${property.propertyName} on Swift RCMS. Accept here: ${acceptUrl}`,
@@ -97,13 +103,13 @@ export async function POST(
         .catch((err) => console.error("SMS failed:", err));
     }
 
-    // ── In-app notification ──
-    await Notification.create({
+    // ── In-app notification (best-effort) ──
+    Notification.create({
       userId:  manager._id,
       type:    NotificationType.MANAGER_INVITE,
       title:   "Property Manager Invitation",
       message: `${authUser.fullName} has invited you to manage ${property.propertyName}. Tap to review and accept.`,
-    });
+    }).catch((err) => console.error("In-app notification failed:", err));
 
     return successResponse({ token }, "Invitation sent successfully", 201);
   } catch (error) {
