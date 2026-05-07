@@ -80,12 +80,6 @@ Data Layer
 └── Redis              → Session cache, OTP storage
 ```
 
-All API responses use a consistent envelope:
-```json
-{ "success": true, "data": {}, "message": "..." }
-{ "success": false, "message": "...", "statusCode": 400 }
-```
-
 ---
 
 ## Modules
@@ -93,14 +87,6 @@ All API responses use a consistent envelope:
 ### Authentication
 
 Handles the full user identity lifecycle.
-
-- **Registration** — email, password, phone number. OTP sent via email and SMS for verification before account activation.
-- **Login** — email/password authentication returning a short-lived JWT access token and a long-lived refresh token stored in HttpOnly cookies.
-- **Password reset** — OTP-gated reset flow over email.
-- **Token refresh** — silent access token renewal via refresh token.
-- **Identity verification** — password re-confirmation before sensitive actions (e.g. assigning a property manager).
-
-Relevant routes: `/api/auth/*`
 
 ---
 
@@ -113,8 +99,6 @@ Three roles with distinct permissions:
 | `LANDLORD` | Full property ownership, billing configuration, manager assignment |
 | `PROPERTY_MANAGER` | Operational access to assigned properties |
 | `TENANT` | Invoice viewing, payment initiation, maintenance requests |
-
-Relevant routes: `/api/users`, `/api/users/me`
 
 ---
 
@@ -129,10 +113,6 @@ Properties are the top-level organisational unit. Each property contains:
 - **Contacts** — on-site contacts (caretakers, security, etc.)
 - **Property Manager** — assigned via a formal invite flow (see [Manager Invitation Flow](#manager-invitation-flow))
 
-Properties are identified internally by a URL-safe slug.
-
-Relevant routes: `/api/properties`, `/api/properties/[id]`, `/api/properties/[id]/contacts`
-
 ---
 
 ### Unit Management
@@ -143,15 +123,12 @@ Individual lettable units within a property.
 - Tracks rent amount, deposit amount, bedroom/bathroom count
 - Occupancy status: `VACANT` or `OCCUPIED` (updated automatically on lease events)
 
-Relevant routes: `/api/units`, `/api/units/[id]`, `/api/properties/[id]/units`
 
 ---
 
 ### Tenant Management
 
 Tenant profiles extend the base user record with tenancy-specific data: national ID number and emergency contact details. Tenants are linked to active leases.
-
-Relevant routes: `/api/tenants`, `/api/tenants/[id]`
 
 ---
 
@@ -163,7 +140,6 @@ A lease binds a tenant to a unit for a defined period.
 - Status transitions: `ACTIVE` → `EXPIRED` (date-driven) or `TERMINATED` (manual)
 - Terminating a lease marks the associated unit as `VACANT`
 
-Relevant routes: `/api/leases`, `/api/leases/[id]`, `/api/leases/[id]/terminate`
 
 ---
 
@@ -175,7 +151,6 @@ Invoices are generated per lease per billing cycle.
 - Status transitions: `PENDING` → `PAID` or `OVERDUE`
 - Supports bulk auto-generation across active leases
 
-Relevant routes: `/api/invoices`, `/api/invoices/[id]`, `/api/invoices/generate`
 
 ---
 
@@ -183,12 +158,10 @@ Relevant routes: `/api/invoices`, `/api/invoices/[id]`, `/api/invoices/generate`
 
 Payment records are linked to leases and invoices.
 
-- Supported methods: M-Pesa, bank transfer, cash
+- Supported methods: M-Pesa, bank transfer
 - M-Pesa payments are initiated via **STK Push**: the system triggers a payment prompt directly on the tenant's phone
 - M-Pesa callbacks update payment and invoice status asynchronously
 - Transaction receipts stored for reconciliation
-
-Relevant routes: `/api/payments`, `/api/mpesa/stkpush`, `/api/mpesa/status/[id]`, `/api/mpesa/callback`
 
 ---
 
@@ -201,7 +174,6 @@ Tenants raise maintenance requests against their unit. Requests carry:
 - Status workflow: `PENDING` → `IN_PROGRESS` → `RESOLVED`
 - Assignment to a responsible party with a resolution timestamp
 
-Relevant routes: `/api/maintenance`, `/api/maintenance/[id]`
 
 ---
 
@@ -217,7 +189,6 @@ Property manager assignment is a structured, consent-based flow rather than a di
 6. **Confirmation notifications** — both parties receive email, SMS, and in-app confirmation.
 7. **Removal** — the landlord can remove the manager at any time; the removed manager receives an in-app notification immediately.
 
-Relevant routes: `/api/properties/[id]/manager`, `/api/properties/[id]/manager/invite`, `/api/invite/[token]`
 
 ---
 
@@ -226,23 +197,6 @@ Relevant routes: `/api/properties/[id]/manager`, `/api/properties/[id]/manager/i
 A unified notification system that delivers messages in-app, via email, and via SMS.
 
 In-app notifications are stored in MongoDB and streamed to the browser in real time via SSE. The notification bell in the nav header shows an unread count and updates live without polling.
-
-**Notification types:**
-
-| Type | Trigger |
-|---|---|
-| `MANAGER_INVITE` | Manager receives an invite; includes a direct link to the acceptance page |
-| `MANAGER_ASSIGNED` | Both parties notified when an invite is accepted |
-| `MANAGER_REMOVED` | Manager notified when removed from a property |
-| `RENT_REMINDER` | Tenant notified before rent is due |
-| `PAYMENT_CONFIRMATION` | Payment received confirmation |
-| `LEASE_EXPIRY` | Lease nearing expiry warning |
-| `MAINTENANCE_UPDATE` | Maintenance request status changed |
-| `GENERAL` | System-level messages |
-
-Clicking a notification opens a detail modal. Actionable types (e.g. `MANAGER_INVITE`) display a contextual action button linking to the relevant page.
-
-Relevant routes: `/api/notifications`, `/api/notifications/stream`, `/api/notifications/[id]/read`
 
 ---
 
@@ -256,42 +210,6 @@ Three core financial and operational reports:
 | **Arrears** | Outstanding balances across tenants |
 | **Occupancy** | Occupied vs. vacant units across properties |
 
-Relevant routes: `/api/reports/arrears`, `/api/reports/income`, `/api/reports/occupancy`
-
----
-
-## Real-Time Infrastructure
-
-Swift RCMS uses **Server-Sent Events (SSE)** for all real-time functionality. A module-level `EventEmitter` (`lib/inviteEmitter.ts`) acts as the pub/sub bus within the server process.
-
-**How it works:**
-
-1. The client opens a persistent `EventSource` connection to a stream endpoint.
-2. When a server-side event occurs, the route emits on a keyed channel.
-3. The SSE handler forwards the event to any connected client subscribed to that channel.
-4. The client updates the UI without a page refresh.
-
-**Active streams:**
-
-| Endpoint | Purpose |
-|---|---|
-| `/api/properties/[id]/manager/invite/stream` | Notify landlord when manager accepts invite |
-| `/api/notifications/stream` | Push new notifications to the nav bell in real time |
-
-**Design note:** The EventEmitter approach is suitable for single-process deployments. Scaling to multiple processes or servers requires replacing the emitter with Redis pub/sub on the same channel keys.
-
----
-
-## Authentication & Access Control
-
-Authentication is cookie-based. On login, two HttpOnly cookies are set:
-
-- `accessToken` — short-lived JWT, verified on each API request
-- `refreshToken` — long-lived token used to issue new access tokens silently
-
-The `getCurrentUser()` utility (`lib/utils/auth.ts`) reads and verifies the access token server-side, making the authenticated user available to all route handlers without additional middleware wiring.
-
-Role-based access is enforced at the route level by comparing the authenticated user's role and ID against the resource's ownership fields.
 
 ---
 
@@ -381,98 +299,3 @@ npm run start
 
 ---
 
-## Environment Variables
-
-Copy `.env.example` to `.env.local` and fill in the values. Required variables:
-
-```env
-# Application
-NEXT_PUBLIC_APP_URL=
-
-# Database
-MONGODB_URI=
-
-# Redis
-REDIS_URL=
-
-# Authentication
-JWT_SECRET=
-JWT_REFRESH_SECRET=
-
-# Email (SMTP)
-SMTP_HOST=
-SMTP_PORT=
-SMTP_SECURE=
-SMTP_USER=
-SMTP_PASS=
-EMAIL_FROM_NAME=
-EMAIL_FROM_ADDRESS=
-
-# SMS — Africa's Talking
-AFRICASTALKING_USERNAME=
-AFRICASTALKING_API_KEY=
-
-# M-Pesa (Safaricom Daraja)
-MPESA_CONSUMER_KEY=
-MPESA_CONSUMER_SECRET=
-MPESA_SHORTCODE=
-MPESA_PASSKEY=
-MPESA_CALLBACK_URL=
-
-# Google Maps
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=
-
-# Invite TTL (hours)
-INVITE_TTL_HOURS=
-```
-
----
-
-## API Reference
-
-All endpoints require authentication via cookie unless noted. Responses follow the standard envelope format.
-
-### Auth
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/auth/register` | Register a new user |
-| POST | `/api/auth/login` | Authenticate and receive tokens |
-| POST | `/api/auth/verify-otp` | Verify OTP for account activation |
-| POST | `/api/auth/resend-otp` | Resend OTP |
-| POST | `/api/auth/forgot-password` | Request password reset OTP |
-| POST | `/api/auth/reset-password` | Reset password with OTP |
-| POST | `/api/auth/verify-password` | Re-verify identity for sensitive actions |
-| POST | `/api/auth/refresh` | Refresh access token |
-| POST | `/api/auth/logout` | Clear auth cookies |
-
-### Properties
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/properties` | List properties for current user |
-| POST | `/api/properties` | Create a new property |
-| GET | `/api/properties/[id]` | Get property detail |
-| PUT | `/api/properties/[id]` | Update property |
-| PATCH | `/api/properties/[id]` | Update cover photo |
-| PUT | `/api/properties/[id]/manager` | Remove property manager |
-| GET | `/api/properties/[id]/manager/invite` | Get pending invite status |
-| POST | `/api/properties/[id]/manager/invite` | Send manager invite |
-| DELETE | `/api/properties/[id]/manager/invite` | Cancel pending invite |
-| GET | `/api/properties/[id]/manager/invite/stream` | SSE stream for invite resolution |
-
-### Notifications
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/notifications` | Get current user's notifications |
-| PATCH | `/api/notifications` | Mark all notifications as read |
-| PATCH | `/api/notifications/[id]/read` | Mark single notification as read |
-| GET | `/api/notifications/stream` | SSE stream for live notifications |
-
-### Manager Invitation
-
-| Method | Endpoint | Notes |
-|---|---|---|
-| GET | `/api/invite/[token]` | Fetch invite details (public) |
-| POST | `/api/invite/[token]` | Accept invite (authenticated) |
