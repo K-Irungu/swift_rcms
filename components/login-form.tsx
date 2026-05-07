@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -29,6 +29,8 @@ export function LoginForm({
 }: React.ComponentProps<"form">) {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get("returnUrl") ?? "/dashboard";
 
   // Submits credentials to the API and redirects to the dashboard on success
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -56,7 +58,7 @@ export function LoginForm({
 
       // Step 3: Redirect to dashboard on success
       toast.success(`Welcome back, ${data.data.user.fullName}!`);
-      router.push("/dashboard");
+      router.push(returnUrl);
     } catch (error: unknown) {
       const message =
         error instanceof Error

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { LoginForm } from "@/components/login-form";
 import Image from "next/image";
 import Link from "next/link";
@@ -8,7 +9,7 @@ const LOGO_CLIP = "polygon(0 0,100% 0,100% 100%,27% 100%,0 73%)";
 
 // ─── Subcomponents ────────────────────────────────────────────────────────────
 
-function Logo() {
+export function Logo() {
   return (
     <Link href="/" className="flex items-center gap-4 font-medium">
       <div
@@ -85,7 +86,9 @@ export default function LoginPage() {
 
           <div className="flex flex-1 items-center justify-start 2xl:flex-none">
             <div className="w-full">
-              <LoginForm />
+              <Suspense>
+                <LoginForm />
+              </Suspense>
             </div>
           </div>
 

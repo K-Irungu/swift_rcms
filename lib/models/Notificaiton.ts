@@ -6,6 +6,7 @@ export enum NotificationType {
   LEASE_EXPIRY         = 'LEASE_EXPIRY',
   MAINTENANCE_UPDATE   = 'MAINTENANCE_UPDATE',
   MANAGER_INVITE       = 'MANAGER_INVITE',
+  MANAGER_ASSIGNED     = 'MANAGER_ASSIGNED',
   GENERAL              = 'GENERAL',
 }
 
