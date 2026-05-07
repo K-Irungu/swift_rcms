@@ -10,6 +10,7 @@ import {
   Phone,
   User,
   Loader2,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,12 @@ import { StatCard, SectionHeader, FieldLabel } from "../../_ui";
 import { ConfirmPasswordDialog } from "../ConfirmPasswordDialog";
 import type { Contact, Property, Unit } from "../../_types";
 import Image from "next/image";
+
+type PendingInvite = {
+  managerName: string;
+  managerEmail: string;
+  expiresAt: string;
+};
 
 type Props = {
   property: Property;
@@ -68,9 +75,12 @@ export function OverviewTab({
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingManagerId, setPendingManagerId] = useState<string | null>(null);
+  const [pendingInvite, setPendingInvite] = useState<PendingInvite | null>(null);
+  const [cancellingInvite, setCancellingInvite] = useState(false);
 
   useEffect(() => {
     fetchManagers();
+    fetchPendingInvite();
   }, []);
 
   async function fetchManagers() {
@@ -83,6 +93,36 @@ export function OverviewTab({
       toast.error("Failed to load managers");
     } finally {
       setManagersLoading(false);
+    }
+  }
+
+  async function fetchPendingInvite() {
+    try {
+      const res = await fetch(`/api/properties/${slug}/manager/invite`);
+      const data = await res.json();
+      setPendingInvite(data.data ?? null);
+    } catch {
+      // non-critical — leave banner empty
+    }
+  }
+
+  async function handleCancelInvite() {
+    setCancellingInvite(true);
+    try {
+      const res = await fetch(`/api/properties/${slug}/manager/invite`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message || "Failed to cancel invitation");
+        return;
+      }
+      setPendingInvite(null);
+      toast.success("Invitation cancelled");
+    } catch {
+      toast.error("Failed to cancel invitation");
+    } finally {
+      setCancellingInvite(false);
     }
   }
   const occupiedCount = units.filter(
@@ -132,6 +172,7 @@ export function OverviewTab({
     }
 
     toast.success(invitationResponse.message || "Invitation sent — awaiting manager's acceptance");
+    return invitationResponse.data as { token: string; expiresAt: string };
   }
 
   async function handleCoverPhotoChange(
@@ -425,9 +466,10 @@ export function OverviewTab({
                 property.
               </p>
             </div>
-            <div className="shrink-0 w-full sm:w-56">
+            <div className="shrink-0 w-full sm:w-56 flex flex-col gap-2">
               <Select
                 value={propertyManagerId}
+                disabled={!!pendingInvite}
                 onOpenChange={(open) => {
                   if (open) fetchManagers();
                 }}
@@ -440,7 +482,7 @@ export function OverviewTab({
                   setPendingManagerId(v);
                 }}
               >
-                <SelectTrigger className="h-8 text-xs border-border rounded-md focus:ring-0 focus-visible:ring-0 w-full">
+                <SelectTrigger className="h-8 text-xs border-border rounded-md focus:ring-0 focus-visible:ring-0 w-full disabled:opacity-60 disabled:cursor-not-allowed">
                   <SelectValue
                     placeholder={
                       managersLoading ? "Loading..." : "Not assigned"
@@ -462,7 +504,7 @@ export function OverviewTab({
                       </div>
                     </SelectItem>
                   ))}
-                  {propertyManagerId && (
+                  {propertyManagerId && !pendingInvite && (
                     <SelectItem
                       value="__remove__"
                       className="text-xs text-destructive font-medium cursor-pointer"
@@ -472,6 +514,23 @@ export function OverviewTab({
                   )}
                 </SelectContent>
               </Select>
+
+              {pendingInvite && (
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <Clock className="size-3 shrink-0 text-amber-500" />
+                  <span className="truncate">
+                    Invite pending &mdash; <span className="font-medium text-foreground">{pendingInvite.managerName}</span>
+                  </span>
+                  <span className="shrink-0">·</span>
+                  <button
+                    onClick={handleCancelInvite}
+                    disabled={cancellingInvite}
+                    className="shrink-0 text-[11px] text-muted-foreground hover:text-destructive underline-offset-2 hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  >
+                    {cancellingInvite ? <Loader2 className="size-3 animate-spin" /> : "Cancel"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -619,8 +678,13 @@ export function OverviewTab({
         }
         onConfirmed={async () => {
           if (!pendingManagerId) return;
-          await handleManagerChange(pendingManagerId);
-          setPropertyManagerId(pendingManagerId);
+          const invited = managers.find((m) => m._id === pendingManagerId);
+          const result = await handleManagerChange(pendingManagerId);
+          setPendingInvite({
+            managerName:  invited?.fullName ?? "",
+            managerEmail: invited?.email ?? "",
+            expiresAt:    result?.expiresAt ?? "",
+          });
           setPendingManagerId(null);
         }}
         onCancel={() => setPendingManagerId(null)}
