@@ -31,6 +31,7 @@ import {
 import { APIProvider, Map, AdvancedMarker } from "@vis.gl/react-google-maps";
 import toast from "react-hot-toast";
 import { StatCard, SectionHeader, FieldLabel } from "../../_ui";
+import { ConfirmPasswordDialog } from "../ConfirmPasswordDialog";
 import type { Contact, Property, Unit } from "../../_types";
 import Image from "next/image";
 
@@ -66,6 +67,7 @@ export function OverviewTab({
   });
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pendingManagerId, setPendingManagerId] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -407,14 +409,14 @@ export function OverviewTab({
             <div className="shrink-0 w-full sm:w-56">
               <Select
                 value={propertyManagerId}
+                onOpenChange={(open) => { if (open) fetchManagers(); }}
                 onValueChange={(v) => {
                   if (v === "__remove__") {
                     setPropertyManagerId("");
                     handleManagerChange(null);
                     return;
                   }
-                  setPropertyManagerId(v);
-                  handleManagerChange(v);
+                  setPendingManagerId(v);
                 }}
               >
                 <SelectTrigger className="h-8 text-xs border-border rounded-md focus:ring-0 focus-visible:ring-0 w-full">
@@ -585,6 +587,18 @@ export function OverviewTab({
           ) : null}
         </div>
       </div>
+
+      <ConfirmPasswordDialog
+        open={!!pendingManagerId}
+        managerName={managers.find((m) => m._id === pendingManagerId)?.fullName ?? ""}
+        onConfirmed={() => {
+          if (!pendingManagerId) return;
+          setPropertyManagerId(pendingManagerId);
+          handleManagerChange(pendingManagerId);
+          setPendingManagerId(null);
+        }}
+        onCancel={() => setPendingManagerId(null)}
+      />
     </div>
   );
 }
