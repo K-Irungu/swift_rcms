@@ -54,6 +54,7 @@ export function OverviewTab({
   const [managers, setManagers] = useState<
     { _id: string; fullName: string; email: string }[]
   >([]);
+  const [managersLoading, setManagersLoading] = useState(false);
   const [propertyManagerId, setPropertyManagerId] = useState(
     property.propertyManager?._id ?? "",
   );
@@ -66,13 +67,23 @@ export function OverviewTab({
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+
   useEffect(() => {
-    fetch("/api/users?role=PROPERTY_MANAGER")
-      .then((r) => r.json())
-      .then(setManagers)
-      .catch(() => toast.error("Failed to load managers"));
+    fetchManagers();
   }, []);
 
+  async function fetchManagers() {
+    setManagersLoading(true);
+    try {
+      const res = await fetch("/api/users?role=PROPERTY_MANAGER");
+      const data = await res.json();
+      setManagers(data);
+    } catch {
+      toast.error("Failed to load managers");
+    } finally {
+      setManagersLoading(false);
+    }
+  }
   const occupiedCount = units.filter(
     (u) => u.occupancyStatus === "OCCUPIED",
   ).length;
@@ -366,7 +377,6 @@ export function OverviewTab({
 
       {/* Row 2: Contacts */}
       <div className="bg-white rounded-lg border flex flex-col lg:flex-row overflow-hidden">
-        {/* Left: Contacts */}
         <div className="flex-1 p-4 min-w-0">
           <SectionHeader
             title="Contacts"
@@ -408,9 +418,10 @@ export function OverviewTab({
                 }}
               >
                 <SelectTrigger className="h-8 text-xs border-border rounded-md focus:ring-0 focus-visible:ring-0 w-full">
-                  <SelectValue placeholder="Not assigned" />
+                  <SelectValue placeholder={managersLoading? "Loading..." : "Not assigned"} />
+
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="p-1">
                   {managers.map((m) => (
                     <SelectItem
                       key={m._id}
