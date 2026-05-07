@@ -54,11 +54,12 @@ export async function GET(
 
       if (!stillPending) {
         // Accepted in the race window — fetch the current manager from the property
-        const fresh = await Property.findById(property._id).populate("propertyManager", "_id fullName");
+        const fresh = await Property.findById(property._id)
+          .populate<{ propertyManager: { _id: { toString(): string }; fullName: string } | null }>("propertyManager", "_id fullName");
         if (fresh?.propertyManager) {
           onAccepted({
-            managerId:   (fresh.propertyManager as any)._id.toString(),
-            managerName: (fresh.propertyManager as any).fullName,
+            managerId:   fresh.propertyManager._id.toString(),
+            managerName: fresh.propertyManager.fullName,
           });
         } else {
           // Expired without acceptance — tell the client to clear the banner

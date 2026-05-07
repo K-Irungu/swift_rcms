@@ -31,13 +31,13 @@ export async function GET(
       propertyId: property._id,
       status: "PENDING",
       expiresAt: { $gt: new Date() },
-    }).populate("managerId", "fullName email");
+    }).populate<{ managerId: { fullName: string; email: string } }>("managerId", "fullName email");
 
     if (!invite) return successResponse(null);
 
     return successResponse({
-      managerName:  (invite.managerId ).fullName,
-      managerEmail: (invite.managerId ).email,
+      managerName:  invite.managerId.fullName,
+      managerEmail: invite.managerId.email,
       expiresAt:    invite.expiresAt,
     });
   } catch (error) {

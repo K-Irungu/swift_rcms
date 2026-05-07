@@ -21,9 +21,9 @@ export async function GET(
     await connectDB();
 
     const invite = await ManagerInvite.findOne({ token })
-      .populate("managerId", "fullName email")
-      .populate("landlordId", "fullName email")
-      .populate("propertyId", "propertyName slug");
+      .populate<{ managerId:  { fullName: string; email: string } }>("managerId",  "fullName email")
+      .populate<{ landlordId: { fullName: string } }>("landlordId", "fullName")
+      .populate<{ propertyId: { propertyName: string; slug: string } }>("propertyId", "propertyName slug");
 
     if (!invite) return errorResponse("Invitation not found", 404);
     if (invite.status === "ACCEPTED") return errorResponse("This invitation has already been accepted", 410);
@@ -32,10 +32,10 @@ export async function GET(
     }
 
     return successResponse({
-      propertyName: (invite.propertyId as any).propertyName,
-      landlordName: (invite.landlordId as any).fullName,
-      managerName:  (invite.managerId as any).fullName,
-      managerEmail: (invite.managerId as any).email,
+      propertyName: invite.propertyId.propertyName,
+      landlordName: invite.landlordId.fullName,
+      managerName:  invite.managerId.fullName,
+      managerEmail: invite.managerId.email,
       expiresAt:    invite.expiresAt,
     });
   } catch (error) {
@@ -57,9 +57,9 @@ export async function POST(
     await connectDB();
 
     const invite = await ManagerInvite.findOne({ token })
-      .populate("managerId", "fullName email phoneNumber")
-      .populate("landlordId", "fullName email phoneNumber")
-      .populate("propertyId", "propertyName slug ownerId");
+      .populate<{ managerId:  { _id: { toString(): string }; fullName: string; email: string; phoneNumber?: string } }>("managerId",  "fullName email phoneNumber")
+      .populate<{ landlordId: { _id: { toString(): string }; fullName: string; email: string; phoneNumber?: string } }>("landlordId", "fullName email phoneNumber")
+      .populate<{ propertyId: { _id: { toString(): string }; propertyName: string; slug: string } }>("propertyId", "propertyName slug ownerId");
 
     if (!invite) return errorResponse("Invitation not found", 404);
     if (invite.status === "ACCEPTED") return errorResponse("This invitation has already been accepted", 410);
@@ -73,16 +73,14 @@ export async function POST(
     }
 
     // Assign manager to property
-    await Property.findByIdAndUpdate((invite.propertyId as any)._id, {
-      $set: { propertyManager: invite.managerId._id },
+    await Property.findByIdAndUpdate(invite.propertyId._id.toString(), {
+      $set: { propertyManager: invite.managerId._id.toString() },
     });
 
     invite.status = "ACCEPTED";
     await invite.save();
 
-    const manager  = invite.managerId  as any;
-    const landlord = invite.landlordId as any;
-    const property = invite.propertyId as any;
+    const { managerId: manager, landlordId: landlord, propertyId: property } = invite;
 
     inviteEmitter.emit(`invite:accepted:${property._id}`, {
       managerId:   manager._id.toString(),
