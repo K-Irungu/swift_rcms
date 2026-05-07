@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
 import Property from "@/lib/models/Property";
+import { ManagerInvite } from "@/lib/models/ManagerInvite";
+import "@/lib/models/User";
 import { getCurrentUser } from "@/lib/utils/auth";
 import inviteEmitter from "@/lib/inviteEmitter";
 
@@ -24,7 +26,7 @@ export async function GET(
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
-    start(controller) {
+    async start(controller) {
       let heartbeat: ReturnType<typeof setInterval>;
 
       const cleanup = () => {
@@ -40,7 +42,32 @@ export async function GET(
         controller.close();
       };
 
+      // Register listener BEFORE the DB check — no event can slip through the gap
       inviteEmitter.on(channel, onAccepted);
+
+      // Close the race window: check if the invite was already resolved
+      const stillPending = await ManagerInvite.exists({
+        propertyId: property._id,
+        status: "PENDING",
+        expiresAt: { $gt: new Date() },
+      });
+
+      if (!stillPending) {
+        // Accepted in the race window — fetch the current manager from the property
+        const fresh = await Property.findById(property._id).populate("propertyManager", "_id fullName");
+        if (fresh?.propertyManager) {
+          onAccepted({
+            managerId:   (fresh.propertyManager as any)._id.toString(),
+            managerName: (fresh.propertyManager as any).fullName,
+          });
+        } else {
+          // Expired without acceptance — tell the client to clear the banner
+          controller.enqueue(encoder.encode(`event: invite-expired\ndata: {}\n\n`));
+          cleanup();
+          controller.close();
+        }
+        return;
+      }
 
       heartbeat = setInterval(() => {
         try {

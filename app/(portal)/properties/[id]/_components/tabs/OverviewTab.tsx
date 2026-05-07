@@ -97,6 +97,11 @@ export function OverviewTab({
       toast.success(`${managerName} has accepted the invitation`);
     });
 
+    es.addEventListener("invite-expired", () => {
+      es.close();
+      setPendingInvite(null);
+    });
+
     es.onerror = () => {
       if (es.readyState === EventSource.CLOSED) es.close();
     };
