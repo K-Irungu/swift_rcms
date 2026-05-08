@@ -37,8 +37,8 @@ export function useProperty(id: string) {
         setContacts(data.contacts ?? []);
 
         if (unitsRes.ok) {
-          const unitsData = await unitsRes.json();
-          setUnits(unitsData);
+          const unitsJson = await unitsRes.json();
+          setUnits(unitsJson.data ?? []);
         }
       } catch {
         toast.error("Failed to load property.");
@@ -50,5 +50,5 @@ export function useProperty(id: string) {
     load();
   }, [id]);
 
-  return { property, setProperty, units, contacts, setContacts, loading, notFound };
+  return { property, setProperty, units, setUnits, contacts, setContacts, loading, notFound };
 }

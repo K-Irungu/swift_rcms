@@ -14,7 +14,7 @@ export enum MaintenanceStatus {
 
 export interface IMaintenance extends Document {
   unitId:           mongoose.Types.ObjectId
-  tenantId:         mongoose.Types.ObjectId
+  tenantId?:        mongoose.Types.ObjectId | null
   issueDescription: string
   urgency:          MaintenanceUrgency
   photoUrl?:        string
@@ -26,7 +26,7 @@ export interface IMaintenance extends Document {
 const MaintenanceSchema = new Schema<IMaintenance>(
   {
     unitId:           { type: Schema.Types.ObjectId, ref: 'Unit', required: true },
-    tenantId:         { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
+    tenantId:         { type: Schema.Types.ObjectId, ref: 'Tenant', default: null },
     issueDescription: { type: String, required: true },
     urgency:          { type: String, enum: Object.values(MaintenanceUrgency), default: MaintenanceUrgency.LOW },
     photoUrl:         { type: String },

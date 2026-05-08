@@ -52,13 +52,6 @@ export function EditSheet({ open, property, slug, onClose, onSaved }: Props) {
         city: property.location.city,
         coordinates: coords,
       },
-      unitTypes: property.unitTypes.map((ut) => ({
-        _id: ut._id,
-        name: ut.name,
-        count: ut.count,
-        rentAmount: ut.rentAmount,
-        depositAmount: ut.depositAmount ?? 0,
-      })),
       billing: {
         rentDueDay: property.billing.rentDueDay,
         paymentMethods: [...property.billing.paymentMethods],
@@ -102,10 +95,6 @@ export function EditSheet({ open, property, slug, onClose, onSaved }: Props) {
             city: draft.location.city,
             ...(draft.location.coordinates ? { coordinates: draft.location.coordinates } : {}),
           },
-          unitTypes: draft.unitTypes.map(({ _id, ...rest }) => ({
-            ...(/^[a-f\d]{24}$/i.test(_id) ? { _id } : {}),
-            ...rest,
-          })),
           billing: draft.billing,
         }),
       });
@@ -286,9 +275,6 @@ export function EditSheet({ open, property, slug, onClose, onSaved }: Props) {
             </APIProvider>
           </div>
 
-         
-
-          
         </div>
 
         <SheetFooter className="px-5 py-4 border-t shrink-0 flex-row gap-2 justify-end">

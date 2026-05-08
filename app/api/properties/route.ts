@@ -6,6 +6,7 @@ import { Lease } from "@/lib/models/Lease";
 import { Invoice } from "@/lib/models/Invoice";
 import { Payment } from "@/lib/models/Payment";
 import { IUnitType } from "@/lib/models/Property";
+import { extractAgreementTerms } from "@/lib/utils/extractAgreementTerms";
 import path from "path";
 import fs from "fs/promises";
 import crypto from "crypto";
@@ -264,7 +265,7 @@ export async function POST(req: NextRequest) {
       slug,
       description: step1.description,
       coverPhotoUrl,
-      ownerId: user.userId, 
+      ownerId: user.userId,
 
       location: {
         physicalAddress: step2.physicalAddress,
@@ -276,7 +277,6 @@ export async function POST(req: NextRequest) {
 
       unitTypes: step3.unitTypes.map((u: IUnitType) => ({
         name: u.name,
-        count: Number(u.count),
         rentAmount: Number(u.rentAmount),
         depositAmount: u.depositAmount ? Number(u.depositAmount) : undefined,
       })),
@@ -286,6 +286,44 @@ export async function POST(req: NextRequest) {
         paymentMethods: step4.paymentMethods,
       },
     });
+
+    // Save per-unit-type agreement files (keyed by index in step3)
+    const agreementsDir = path.join(process.cwd(), "private", "agreements");
+    let agreementsChanged = false;
+
+    for (let i = 0; i < property.unitTypes.length; i++) {
+      const agreementFile = formData.get(`agreement_${i}`) as File | null;
+      if (!agreementFile) continue;
+
+      const bytes  = await agreementFile.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+
+      const isDocx = buffer[0] === 0x50 && buffer[1] === 0x4b;
+      if (!isDocx) continue;
+
+      await fs.mkdir(agreementsDir, { recursive: true });
+
+      const safeFilename = agreementFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const storedName   = `${Date.now()}-${slug}-${property.unitTypes[i]._id}-${safeFilename}`;
+      const storedPath   = path.join(agreementsDir, storedName);
+
+      await fs.writeFile(storedPath, buffer);
+
+      property.unitTypes[i].agreementPath     = storedPath;
+      property.unitTypes[i].agreementFilename = agreementFile.name;
+
+      try {
+        property.unitTypes[i].agreementTerms = await extractAgreementTerms(buffer);
+      } catch (extractErr) {
+        console.warn("Agreement term extraction failed for unit type", i, extractErr);
+      }
+
+      agreementsChanged = true;
+    }
+
+    if (agreementsChanged) {
+      await property.save();
+    }
 
     return NextResponse.json(
       { success: true, slug: property.slug },

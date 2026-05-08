@@ -70,16 +70,13 @@ type Property = {
     physicalAddress: string;
     coordinates?: { lat: number; lng: number };
   };
-  unitTypes: { _id: string; name: string; count: number; rentAmount: number }[];
+  unitTypes: { _id: string; name: string; rentAmount: number }[];
   createdAt: string;
   stats: PropertyStats;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function configuredUnits(p: Property) {
-  return p.unitTypes.reduce((sum, u) => sum + u.count, 0);
-}
 
 function locationString(p: Property) {
   return [p.location.city, p.location.county].filter(Boolean).join(", ");
@@ -153,7 +150,7 @@ function PropertyCard({
   onClick: () => void;
 }) {
   const { stats } = property;
-  const units = configuredUnits(property);
+  const units = stats.totalUnits;
   const collectionPct =
     stats.monthlyRevenue > 0
       ? Math.min(Math.round((stats.collectedThisMonth / stats.monthlyRevenue) * 100), 100)
@@ -317,12 +314,12 @@ export default function PropertiesPage() {
     {
       id: "units",
       size: 120,
-      accessorFn: (row) => configuredUnits(row),
+      accessorFn: (row) => row.stats.totalUnits,
       header: () => (
         <span className="text-xs font-semibold text-muted-foreground tracking-wide">Units</span>
       ),
       cell: ({ row }) => {
-        const units = configuredUnits(row.original);
+        const units = row.original.stats.totalUnits;
         const types = row.original.unitTypes.length;
         return (
           <div className="flex flex-col gap-0.5">

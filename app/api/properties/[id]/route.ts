@@ -101,11 +101,32 @@ export async function PUT(
       }
     }
 
+    // Merge incoming unit types with existing ones so agreementPath/agreementFilename
+    // are never clobbered by a JSON PUT that cannot carry the server-side file path.
+    let mergedUnitTypes = body.unitTypes;
+    if (Array.isArray(body.unitTypes)) {
+      type AgreementFields = { agreementPath?: string; agreementFilename?: string };
+      const existingMap = new Map<string, AgreementFields>(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (auth.property.unitTypes as any[]).map((ut) => [
+          String(ut._id),
+          { agreementPath: ut.agreementPath as string | undefined, agreementFilename: ut.agreementFilename as string | undefined },
+        ]),
+      );
+      mergedUnitTypes = body.unitTypes.map((ut: { _id?: string; [key: string]: unknown }) => {
+        const preserved: AgreementFields | undefined = ut._id ? existingMap.get(ut._id) : undefined;
+        const merged: Record<string, unknown> = { ...ut };
+        if (preserved?.agreementPath)     merged.agreementPath     = preserved.agreementPath;
+        if (preserved?.agreementFilename) merged.agreementFilename = preserved.agreementFilename;
+        return merged;
+      });
+    }
+
     const allowedUpdate = {
       propertyName: body.propertyName.trim(),
       description:  body.description,
       location:     body.location,
-      unitTypes:    body.unitTypes,
+      unitTypes:    mergedUnitTypes,
       billing:      body.billing,
       updatedAt:    new Date(),
     };

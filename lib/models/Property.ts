@@ -1,10 +1,21 @@
 import { Schema, Document, models, model } from "mongoose";
 
+export interface IAgreementTerms {
+  leaseDurationMonths?:  number;
+  noticePeriodDays?:     number;
+  latePenaltyPercent?:   number;
+  latePenaltyGraceDays?: number;
+  keyRules?:             string[];
+}
+
 export interface IUnitType {
-  name: string;
-  count: number;
-  rentAmount: number;
-  depositAmount?: number;
+  name:              string;
+  count?:            number;
+  rentAmount:        number;
+  depositAmount?:    number;
+  agreementPath?:    string;  // server-side private path — never sent to client
+  agreementFilename?: string; // original filename — safe to expose
+  agreementTerms?:   IAgreementTerms;
 }
 
 
@@ -47,10 +58,19 @@ ownerId: Schema.Types.ObjectId;
 }
 
 const UnitTypeSchema = new Schema<IUnitType>({
-  name: { type: String, required: true },
-  count: { type: Number, required: true },
-  rentAmount: { type: Number, required: true },
-  depositAmount: { type: Number },
+  name:              { type: String, required: true },
+  count:             { type: Number },
+  rentAmount:        { type: Number, required: true },
+  depositAmount:     { type: Number },
+  agreementPath:     { type: String },
+  agreementFilename: { type: String },
+  agreementTerms: {
+    leaseDurationMonths:  { type: Number },
+    noticePeriodDays:     { type: Number },
+    latePenaltyPercent:   { type: Number },
+    latePenaltyGraceDays: { type: Number },
+    keyRules:             { type: [String] },
+  },
 });
 
 

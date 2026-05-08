@@ -1,11 +1,20 @@
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export type AgreementTerms = {
+  leaseDurationMonths?:  number;
+  noticePeriodDays?:     number;
+  latePenaltyPercent?:   number;
+  latePenaltyGraceDays?: number;
+  keyRules?:             string[];
+};
+
 export type UnitType = {
   _id: string;
   name: string;
-  count: number;
   rentAmount: number;
   depositAmount?: number;
+  agreementFilename?: string;
+  agreementTerms?: AgreementTerms;
 };
 
 export type Property = {
@@ -34,11 +43,10 @@ export type Property = {
 export type Unit = {
   _id: string;
   unitNumber: string;
-  bedrooms: number;
-  bathrooms: number;
   rentAmount: number;
   depositAmount: number;
   occupancyStatus: "VACANT" | "OCCUPIED";
+  currentTenant?: { _id: string; fullName: string } | null;
 };
 
 export type Draft = {
@@ -51,13 +59,6 @@ export type Draft = {
     city: string;
     coordinates: { lat: number; lng: number } | null;
   };
-  unitTypes: Array<{
-    _id: string;
-    name: string;
-    count: number;
-    rentAmount: number;
-    depositAmount: number;
-  }>;
   billing: {
     rentDueDay: number;
     paymentMethods: string[];
@@ -71,7 +72,59 @@ export type Contact = {
   phone: string;
 };
 
-export type TabKey = "overview" | "units" | "financials" | "maintenance";
+export type OnboardingStatus =
+  | "PENDING"
+  | "DOCUMENTS_SUBMITTED"
+  | "KYC_APPROVED"
+  | "KYC_REJECTED"
+  | "LEASE_SIGNED"
+  | "ACTIVE"
+  | "INACTIVE";
+
+export type Tenant = {
+  _id: string;
+  fullName: string;
+  email?: string;
+  phone: string;
+  nationalId: string;
+  propertyId: string;
+  unitId?: { _id: string; unitNumber: string } | null;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  onboardingStatus: OnboardingStatus;
+  kyc?: {
+    idType: "national_id" | "passport";
+    submittedAt: string;
+    reviewedAt?: string;
+    rejectionReason?: string;
+    idFrontPath?: string;
+    idBackPath?: string;
+    selfiePath?: string;
+  };
+  leaseRecord?: {
+    unitId: string;
+    startDate: string;
+    endDate: string;
+    rentAmount: number;
+    depositAmount: number;
+    signedAt?: string;
+    documentPath?: string;
+  };
+  moveInPayment?: {
+    depositExpected: number;
+    depositReceived: number;
+    depositReference?: string;
+    depositReceivedAt?: string;
+    firstRentExpected: number;
+    firstRentReceived: number;
+    firstRentReference?: string;
+    firstRentReceivedAt?: string;
+  };
+  notes?: string;
+  createdAt: string;
+};
+
+export type TabKey = "overview" | "units" | "tenants" | "finance" | "maintenance";
 
 
 export type PendingInvite = {
@@ -82,9 +135,6 @@ export type PendingInvite = {
 
 export type OverviewTabProps = {
   property: Property;
-  units: Unit[];
-  contacts: Contact[];
-  setContacts: React.Dispatch<React.SetStateAction<Contact[]>>;
   slug: string;
   onPropertyUpdate: (updated: Property) => void;
 };

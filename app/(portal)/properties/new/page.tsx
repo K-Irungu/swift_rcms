@@ -14,6 +14,7 @@ import {
   MapPin,
   X,
   Upload,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,9 +49,9 @@ type Step2Data = {
 type UnitType = {
   id: string;
   name: string;
-  count: string;
   rentAmount: string;
   depositAmount: string;
+  agreementFile: File | null;
 };
 
 type Step3Data = {
@@ -60,6 +61,7 @@ type Step3Data = {
 type Step4Data = {
   rentDueDay: string;
   paymentMethods: string[];
+  waterRatePerUnit: string;
 };
 
 type FieldErrors<T> = Partial<Record<keyof T, string>>;
@@ -104,11 +106,13 @@ const selectTriggerCls = (error?: string) =>
 function Field({
   label,
   required,
+  hint,
   error,
   children,
 }: {
   label: string;
   required?: boolean;
+  hint?: string;
   error?: string;
   children: React.ReactNode;
 }) {
@@ -119,6 +123,7 @@ function Field({
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </Label>
       {children}
+      {hint && !error && <p className="text-[11px] text-muted-foreground">{hint}</p>}
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   );
@@ -586,6 +591,21 @@ function UnitTypeRow({
 }) {
   const isPreset = UNIT_TYPE_PRESETS.includes(unit.name);
   const [custom, setCustom] = useState(!isPreset && unit.name !== "");
+  const agreementRef = useRef<HTMLInputElement>(null);
+
+  const handleAgreementFile = (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Agreement file must be under 10 MB.");
+      return;
+    }
+    const isDocx = file.name.toLowerCase().endsWith(".docx");
+    if (!isDocx) {
+      toast.error("Only .docx files are supported.");
+      return;
+    }
+    onChange({ ...unit, agreementFile: file });
+  };
 
   const handleSelectChange = (v: string) => {
     if (v === "__custom__") {
@@ -614,8 +634,8 @@ function UnitTypeRow({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="col-span-2 flex flex-col gap-1.5">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
           <Label className="text-xs font-medium text-foreground">
             Type <span className="text-red-500">*</span>
           </Label>
@@ -661,33 +681,69 @@ function UnitTypeRow({
           )}
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-xs font-medium text-foreground">
-            No. of Units <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            type="number"
-            min={1}
-            className="h-8 text-xs border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs"
-            placeholder="e.g. 12"
-            value={unit.count}
-            onChange={(e) => onChange({ ...unit, count: e.target.value })}
-          />
-        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs font-medium text-foreground">
+              Default Rent (KES) <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              type="number"
+              min={0}
+              className="h-8 text-xs border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs"
+              placeholder="e.g. 25,000"
+              value={unit.rentAmount}
+              onChange={(e) => onChange({ ...unit, rentAmount: e.target.value })}
+            />
+          </div>
 
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-xs font-medium text-foreground">
-            Default Rent (KES) <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            type="number"
-            min={0}
-            className="h-8 text-xs border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs"
-            placeholder="e.g. 25,000"
-            value={unit.rentAmount}
-            onChange={(e) => onChange({ ...unit, rentAmount: e.target.value })}
-          />
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs font-medium text-foreground">Deposit (KES)</Label>
+            <Input
+              type="number"
+              min={0}
+              className="h-8 text-xs border-border rounded-md focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs"
+              placeholder="e.g. 50,000"
+              value={unit.depositAmount}
+              onChange={(e) => onChange({ ...unit, depositAmount: e.target.value })}
+            />
+          </div>
         </div>
+      </div>
+
+      {/* Agreement document */}
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs font-medium text-foreground">
+          Tenancy Agreement{" "}
+          <span className="text-muted-foreground font-normal">(optional · .docx)</span>
+        </Label>
+        {unit.agreementFile ? (
+          <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2">
+            <FileText className="size-3.5 text-[#2D64C8] shrink-0" />
+            <span className="text-xs flex-1 truncate">{unit.agreementFile.name}</span>
+            <button
+              type="button"
+              className="size-4 flex items-center justify-center text-muted-foreground hover:text-red-500"
+              onClick={() => onChange({ ...unit, agreementFile: null })}
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="flex items-center gap-1.5 h-8 px-3 text-xs rounded-md border border-dashed border-border text-muted-foreground hover:border-[#2D64C8]/50 hover:text-[#2D64C8] transition-colors w-fit"
+            onClick={() => agreementRef.current?.click()}
+          >
+            <Upload className="size-3" /> Upload agreement
+          </button>
+        )}
+        <input
+          ref={agreementRef}
+          type="file"
+          accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          className="hidden"
+          onChange={(e) => handleAgreementFile(e.target.files?.[0])}
+        />
       </div>
     </div>
   );
@@ -702,16 +758,12 @@ function Step3({
   onChange: (d: Step3Data) => void;
   error?: string;
 }) {
-  const totalUnits = data.unitTypes.reduce(
-    (sum, u) => sum + (parseInt(u.count) || 0),
-    0,
-  );
 
   const addUnitType = () => {
     onChange({
       unitTypes: [
         ...data.unitTypes,
-        { id: crypto.randomUUID(), name: "", count: "", rentAmount: "", depositAmount: "" },
+        { id: crypto.randomUUID(), name: "", rentAmount: "", depositAmount: "", agreementFile: null },
       ],
     });
   };
@@ -756,13 +808,6 @@ function Step3({
       >
         <Plus className="size-3.5" /> Add Unit Type
       </Button>
-
-      {totalUnits > 0 && (
-        <div className="rounded-md bg-muted/40 border border-border px-3 py-2 flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">Total units across all types</span>
-          <span className="text-xs font-semibold text-foreground">{totalUnits}</span>
-        </div>
-      )}
     </div>
   );
 }
@@ -823,6 +868,22 @@ function Step4({
           ))}
         </div>
       </Field>
+
+      <Field label="Water Rate (KES / unit)" hint="Optional. Can be updated later. Used for water billing.">
+        <div className="relative">
+          <Input
+            type="number"
+            min={0}
+            className={inputCls()}
+            placeholder="e.g. 80"
+            value={data.waterRatePerUnit}
+            onChange={(e) => onChange({ ...data, waterRatePerUnit: e.target.value })}
+          />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground pointer-events-none">
+            per unit
+          </span>
+        </div>
+      </Field>
     </div>
   );
 }
@@ -848,8 +909,6 @@ function validateStep3(data: Step3Data): string | undefined {
   if (data.unitTypes.length === 0) return "Add at least one unit type.";
   for (const u of data.unitTypes) {
     if (!u.name.trim()) return "Each unit type must have a name.";
-    if (!u.count || parseInt(u.count) < 1)
-      return "Each unit type must have at least 1 unit.";
     if (!u.rentAmount || parseFloat(u.rentAmount) <= 0)
       return "Each unit type must have a default rent amount.";
   }
@@ -888,12 +947,13 @@ export default function NewPropertyPage() {
   });
   const [step3, setStep3] = useState<Step3Data>({
     unitTypes: [
-      { id: crypto.randomUUID(), name: "", count: "", rentAmount: "", depositAmount: "" },
+      { id: crypto.randomUUID(), name: "", rentAmount: "", depositAmount: "", agreementFile: null },
     ],
   });
   const [step4, setStep4] = useState<Step4Data>({
     rentDueDay: "1",
     paymentMethods: [],
+    waterRatePerUnit: "",
   });
 
   const [errors1, setErrors1] = useState<FieldErrors<Step1Data>>({});
@@ -940,22 +1000,17 @@ export default function NewPropertyPage() {
         description:  step1.description,
       }));
       formData.append("step2", JSON.stringify(step2));
-      formData.append("step3", JSON.stringify(step3));
+      formData.append("step3", JSON.stringify({
+        unitTypes: step3.unitTypes.map(({ agreementFile: _f, ...rest }) => rest),
+      }));
       formData.append("step4", JSON.stringify(step4));
 
-      console.log("Submitting form data:", {
-        step1: {
-          propertyName: step1.propertyName,
-          description: step1.description,
-          coverPhoto: step1.coverPhoto ? {
-            name: step1.coverPhoto.name,
-            type: step1.coverPhoto.type,
-            size: step1.coverPhoto.size,
-          } : null,
-        },
-        step2,
-        step3,
-        step4,
+      // Append per-unit-type agreement files keyed by index so the API
+      // can match them back to the created unit types by position.
+      step3.unitTypes.forEach((ut, i) => {
+        if (ut.agreementFile) {
+          formData.append(`agreement_${i}`, ut.agreementFile);
+        }
       });
       
       const res = await fetch("/api/properties", {
@@ -969,6 +1024,21 @@ export default function NewPropertyPage() {
       }
 
       const { slug } = await res.json();
+
+      // Set initial water rate if provided
+      const rate = parseFloat(step4.waterRatePerUnit);
+      if (!isNaN(rate) && rate >= 0 && step4.waterRatePerUnit.trim() !== "") {
+        try {
+          await fetch(`/api/properties/${slug}/water-rate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ratePerUnit: rate, effectiveFrom: new Date().toISOString() }),
+          });
+        } catch {
+          // Non-fatal — rate can be set later from the property page
+        }
+      }
+
       toast.success("Property created successfully!");
       router.push(`/properties/${slug}`);
     } catch (err) {

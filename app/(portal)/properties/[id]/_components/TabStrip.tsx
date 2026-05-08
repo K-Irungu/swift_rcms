@@ -8,26 +8,26 @@ import type { Property, TabKey, Unit } from "../_types";
 type Props = {
   property: Property;
   units: Unit[];
+  tenantCount: number;
   activeTab: TabKey;
   onTabChange: (tab: TabKey) => void;
   onEdit: () => void;
 };
 
-const TABS: { key: TabKey; label: string; badge?: number }[] = [
-  { key: "overview", label: "Overview" },
-  { key: "units", label: "Units" },
-  { key: "financials", label: "Financials" },
-  { key: "maintenance", label: "Maintenance", badge: 8 },
+const TABS: { key: TabKey; label: string }[] = [
+  { key: "overview",    label: "Details" },
+  { key: "units",       label: "Units" },
+  { key: "tenants",     label: "Tenants" },
+  { key: "finance",     label: "Billing & Finance" },
+  { key: "maintenance", label: "Maintenance" },
 ];
 
-export function TabStrip({ property, units, activeTab, onTabChange, onEdit }: Props) {
+export function TabStrip({ property, units, tenantCount, activeTab, onTabChange, onEdit }: Props) {
   const router = useRouter();
-  const totalUnits = property.unitTypes.reduce((sum, u) => sum + u.count, 0);
-
   function tabCount(key: TabKey): number | undefined {
-    if (key === "units") return units.length || (totalUnits > 0 ? totalUnits : undefined);
-    const tab = TABS.find((t) => t.key === key);
-    return tab?.badge;
+    if (key === "units")   return units.length   || undefined;
+    if (key === "tenants") return tenantCount     || undefined;
+    return undefined;
   }
 
   return (
