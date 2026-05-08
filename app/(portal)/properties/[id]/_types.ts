@@ -72,3 +72,25 @@ export type Contact = {
 };
 
 export type TabKey = "overview" | "units" | "financials" | "maintenance";
+
+
+export type PendingInvite = {
+  managerName: string;
+  managerEmail: string;
+  expiresAt: string;
+};
+
+export type OverviewTabProps = {
+  property: Property;
+  units: Unit[];
+  contacts: Contact[];
+  setContacts: React.Dispatch<React.SetStateAction<Contact[]>>;
+  slug: string;
+  onPropertyUpdate: (updated: Property) => void;
+};
+
+export type NewContact = {
+  role: string;
+  name: string;
+  phone: string;
+};
