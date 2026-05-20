@@ -53,6 +53,7 @@ export const generateTokens = (
 // ─── Auth Service ─────────────────────────────────────────────────────────────
 
 export const authService = {
+
   async sendRegistrationOtp(input: RegisterOtpInput) {
     await connectDB();
     await connectRedis();
@@ -67,13 +68,13 @@ export const authService = {
     }
 
     // // Step 2: Check DB — lean + minimal select for a fast, cheap query
-    // const existingUser = await User.findOne({ email }).select("_id").lean();
+    const existingUser = await User.findOne({ email }).select("_id").lean();
 
-    // if (existingUser) {
-    //   await redis.set(otpKey, JSON.stringify({ type: "exists" }), { EX: 300 });
-    //   await emailService.sendAccountExists(email, input.fullName);
-    //   return;
-    // }
+    if (existingUser) {
+      await redis.set(otpKey, JSON.stringify({ type: "exists" }), { EX: 300 });
+      await emailService.sendAccountExists(email, input.fullName);
+      return;
+    }
 
     // Step 3: New email — generate and store OTP as before
     const otp = generateOtp();

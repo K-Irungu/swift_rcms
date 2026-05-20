@@ -10,6 +10,11 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+transporter.verify((error) => {
+  if (error) console.error("[EmailService] SMTP connection failed:", error);
+  else console.log("[EmailService] SMTP ready");
+});
+
 const FROM = `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_FROM_ADDRESS}>`;
 
 export const emailService = {
@@ -51,7 +56,7 @@ export const emailService = {
 
   async sendAccountExists(to: string, fullName: string) {
     const html = `
-    <div> style="font-family:sans-serif;max-width:480px;margin:auto">
+<div style="font-family:sans-serif;max-width:480px;margin:auto">
       <h2>Account Already Exists</h2>
     <p>Hi ${fullName},</p>
       <p>
