@@ -50,14 +50,14 @@ export function LoginForm({
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
+      const loginResponse = await res.json();
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || "Login failed");
+      if (!res.ok || !loginResponse.success) {
+        throw new Error(loginResponse.message || "Login failed");
       }
 
       // Step 3: Redirect to dashboard on success
-      toast.success(`Welcome back, ${data.data.user.fullName}!`);
+      toast.success(`Welcome back, ${loginResponse.data.fullName}!`);
       router.push(returnUrl);
     } catch (error: unknown) {
       const message =

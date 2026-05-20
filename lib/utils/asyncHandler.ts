@@ -1,3 +1,5 @@
+// This utility function wraps route handlers to catch errors and return standardized error responses. 
+// Essentially it abstracts away the try-catch logic from individual route handlers, allowing them to focus on their core functionality.
 import { NextRequest, NextResponse } from 'next/server'
 import { ApiError } from './ApiError'
 import { errorResponse } from './ApiResponse'
