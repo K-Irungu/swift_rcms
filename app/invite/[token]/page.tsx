@@ -6,7 +6,7 @@ import { CheckCircle2, XCircle, Loader2, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
-import { Logo } from "@/app/auth/login/page";
+import { Logo } from "@/components/auth-shell";
 
 type InviteDetails = {
   propertyName: string;
@@ -48,6 +48,7 @@ function HeroPanel() {
             src="/images/dashboard-preview.png"
             alt="Swift RCMS Dashboard Preview"
             fill
+            sizes="(min-width: 1024px) 50vw, 100vw"
             quality={95}
             priority
             className="object-cover object-top-left"

@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { NavNotifications } from "@/components/nav-notifications";
+import { SessionActivityTracker } from "@/components/session-activity-tracker";
 import { getCurrentUser } from "@/lib/utils/auth";
 import { redirect } from "next/navigation";
 
@@ -21,6 +22,7 @@ export default async function PortalLayout({
 
   return (
     <SidebarProvider className="overflow-hidden">
+      <SessionActivityTracker />
       <AppSidebar />
       <SidebarInset className="min-w-0 overflow-hidden">
         <header className="flex h-14 shrink-0 items-center justify-between gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">

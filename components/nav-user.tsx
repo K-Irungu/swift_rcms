@@ -36,14 +36,23 @@ export function NavUser({
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
-    setIsLoggingOut(true);
-    try {
-      const res = await fetch("/api/auth/logout", { method: "POST" });
+    if (isLoggingOut) return;
 
-      if (!res.ok) throw new Error("Logout failed");
+    setIsLoggingOut(true);
+
+    try {
+      const res = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error("Logout failed");
+      }
 
       toast.success("Logged out successfully.");
-      router.push("/auth/login");
+      router.replace("/auth/login");
+      router.refresh();
     } catch {
       toast.error("Failed to log out. Please try again.");
     } finally {

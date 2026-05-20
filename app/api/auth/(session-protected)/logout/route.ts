@@ -1,9 +1,10 @@
 // app/api/auth/logout/route.ts
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { asyncHandler } from "@/lib/utils/asyncHandler"
 import { authenticate } from "@/lib/middleware/authenticate"
 import { authService } from "@/lib/services/auth.service"
 import { clearAuthCookies } from "@/lib/utils/cookies"
+import { successResponse } from "@/lib/utils/ApiResponse"
 
 // ─── POST /api/auth/logout ────────────────────────────────────────────────────
 
@@ -15,7 +16,7 @@ export const POST = asyncHandler(async (req: NextRequest) => {
   await authService.logout(user.userId)
 
   // Step 3: Clear auth cookies from the browser
-  const response = NextResponse.json({ success: true, message: "Logged out successfully" })
+  const response = successResponse("Logged out successfully");
   clearAuthCookies(response)
 
   return response

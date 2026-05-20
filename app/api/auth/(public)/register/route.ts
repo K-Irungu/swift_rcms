@@ -7,9 +7,9 @@ import { successResponse } from "@/lib/utils/ApiResponse";
 
 // ─── Validation Schema ────────────────────────────────────────────────────────
 
-const schema = z.object({
-  fullName:    z.string().min(2),
-  email:       z.string().email(),
+const validationSchema = z.object({
+  fullName: z.string().min(2),
+  email: z.string().email(),
   phoneNumber: z.string().min(10),
 });
 
@@ -17,12 +17,12 @@ const schema = z.object({
 
 export const POST = asyncHandler(async (req: NextRequest) => {
   // Step 1: Validate request body
-  const body  = await req.json();
-  const input = validate(schema, body);
+  const body = await req.json();
+  const input = validate(validationSchema, body);
 
-  // Step 2: Generate OTP and send via SMS and email
+
+  // Step 2: Generate OTP and send via SMS and email( email only for now until SMS is implemented)
   await authService.sendRegistrationOtp(input);
 
-  // Step 3: Return success response
-  return successResponse(null, "OTP sent successfully", 200);
-});
+  // Step 3: Return generic response
+  return successResponse("Check your email for next steps");});

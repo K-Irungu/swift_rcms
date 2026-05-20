@@ -54,33 +54,37 @@ export const generateTokens = (
 
 export const authService = {
   async sendRegistrationOtp(input: RegisterOtpInput) {
+    await connectDB();
     await connectRedis();
 
     const { phoneNumber, email } = input;
-    const key = `otp:register:${phoneNumber}:${email}`;
+    const otpKey = `otp:register:${phoneNumber}:${email}`;
 
-    // Step 1: Check for an existing OTP to enforce rate limiting
-    const existing = await redis.get(key);
+    // Step 1: Rate limit check — same key, same TTL, both paths
+    const existing = await redis.get(otpKey);
     if (existing) {
       throw ApiError.badRequest("OTP already sent. Please wait and try again.");
     }
 
-    // Step 2: Generate OTP and hash it before storing
+    // // Step 2: Check DB — lean + minimal select for a fast, cheap query
+    // const existingUser = await User.findOne({ email }).select("_id").lean();
+
+    // if (existingUser) {
+    //   await redis.set(otpKey, JSON.stringify({ type: "exists" }), { EX: 300 });
+    //   await emailService.sendAccountExists(email, input.fullName);
+    //   return;
+    // }
+
+    // Step 3: New email — generate and store OTP as before
     const otp = generateOtp();
     const otpHash = hashOtp(otp);
 
-    // Step 3: Store hashed OTP and registration payload in Redis with a 5 minute TTL
     await redis.set(
-      key,
+      otpKey,
       JSON.stringify({ otpHash, payload: input, attempts: 0 }),
       { EX: 300 },
     );
 
-    // Step 4: Dispatch OTP to the user via SMS and email
-    await smsService.send(
-      phoneNumber,
-      `Your Swift RCMS OTP is ${otp}. It expires in 5 minutes.`,
-    );
     await emailService.sendOtp(email, otp);
   },
 

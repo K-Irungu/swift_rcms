@@ -2,29 +2,9 @@ import { Suspense } from "react";
 import { LoginForm } from "@/components/login-form";
 import Image from "next/image";
 import Link from "next/link";
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const LOGO_CLIP = "polygon(0 0,100% 0,100% 100%,27% 100%,0 73%)";
+import { Logo } from "@/components/auth-shell";
 
 // ─── Subcomponents ────────────────────────────────────────────────────────────
-
-export function Logo() {
-  return (
-    <Link href="/" className="flex items-center gap-4 font-medium">
-      <div
-        className="flex text-xl font-extrabold items-center justify-center border border-[#B0BDD0] text-primary-foreground w-12 h-12"
-        style={{ clipPath: LOGO_CLIP }}
-      >
-        SR
-      </div>
-      <div className="flex gap-1.5">
-        <span className="font-extrabold text-white text-xl">swift</span>
-        <span className="font-extrabold text-[#B0BDD0] text-xl">rcms</span>
-      </div>
-    </Link>
-  );
-}
 
 function Footer() {
   return (
@@ -58,6 +38,7 @@ function HeroPanel() {
             src="/images/dashboard-preview.png"
             alt="Swift RCMS Dashboard Preview"
             fill
+            sizes="(min-width: 1024px) 50vw, 100vw"
             quality={95}
             priority
             className="object-cover object-top-left"

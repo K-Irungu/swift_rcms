@@ -27,7 +27,7 @@ export const POST = asyncHandler(async (req: NextRequest) => {
   const response = successResponse(
     {
       user: {
-        name: user.fullName,
+        fullName: user.fullName,
         role: user.role,
       },
     },

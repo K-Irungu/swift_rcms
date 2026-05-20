@@ -57,7 +57,7 @@ export function LoginForm({
       }
 
       // Step 3: Redirect to dashboard on success
-      toast.success(`Welcome back, ${loginResponse.data.fullName}!`);
+      toast.success(`Welcome back, ${loginResponse.data.user.fullName}!`);
       router.push(returnUrl);
     } catch (error: unknown) {
       const message =
