@@ -23,9 +23,11 @@ export const emailService = {
     return info;
   },
 
-  async sendOtp(to: string, otp: string) {
+  // Fullname here is optional because forgot-password only has email, but we can still send a decent email without it
+  async sendOtp(to: string, otp: string, fullName?: string) {
     const html = `
       <div style="font-family:sans-serif;max-width:480px;margin:auto">
+        <h2>Hi ${fullName || "there"},</h2>
         <h2>Your one time password</h2>
         <p style="font-size:32px;font-weight:bold;letter-spacing:8px">${otp}</p>
         <p>This code expires in <strong>5 minutes</strong>. Do not share it with anyone.</p>
@@ -54,10 +56,10 @@ export const emailService = {
     return this.send(to, subject, html);
   },
 
-  async sendAccountExists(to: string, fullName: string) {
+  async sendWarningToExistingUser(to: string, fullName: string) {
     const html = `
 <div style="font-family:sans-serif;max-width:480px;margin:auto">
-      <h2>Account Already Exists</h2>
+      <h2>Registration Attempt</h2>
     <p>Hi ${fullName},</p>
       <p>
          Someone tried to register a Swift RCMS account using this email address,
