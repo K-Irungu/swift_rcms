@@ -25,17 +25,14 @@ export const POST = asyncHandler(async (req: NextRequest) => {
   const input = validate(registrationSchema, body);
 
   // Step 2: Process registration and send OTP email
-  const pending = await authService.register(input);
+  const result = await authService.register(input);
 
   // Step 3: Return a standardized generic success response
   const response = successResponse(null, "Check your email for next steps");
 
-  if (pending) {
-    await setPendingRegistrationCookie(response, {
-      email: pending.email,
-      fullName: pending.fullName,
-      phoneNumber: pending.phoneNumber,
-    });
+  // Step 4: Set httpOnly cookies for user details to maintain session on the client
+  if (!result.waiting) {
+    await setPendingRegistrationCookie(response, input);
   }
 
   return response;

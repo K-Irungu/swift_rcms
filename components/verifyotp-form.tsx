@@ -6,12 +6,10 @@ import { FieldGroup, FieldDescription } from "@/components/ui/field";
 import { useState, useRef, useEffect } from "react";
 import { Loader2, ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const RESEND_COOLDOWN = 60;
 
 const redirectMap: Record<string, string> = {
   login: "/dashboard",
@@ -25,50 +23,93 @@ const backMap: Record<string, string> = {
   reset: "/auth/forgot-password",
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-// +254712345678 → +2547*****678
-function maskPhone(phone: string) {
-  if (phone.length < 6) return phone;
-  return phone.slice(0, 4) + "*****" + phone.slice(-3);
-}
-
-// john.doe@example.com → jo***@example.com
-function maskEmail(email: string) {
-  const [local, domain] = email.split("@");
-  if (!domain) return email;
-  return local.slice(0, 2) + "***@" + domain;
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
+interface VerifyOtpFormProps extends React.ComponentProps<"form"> {
+  mode: string;
+  maskedEmail?: string;
+  maskedPhone?: string;
+  initialCooldownSeconds?: number; // Update interface
+}
+
 export function VerifyOtpForm({
-  className,
+  mode,
+  maskedEmail,
+  maskedPhone,
+  initialCooldownSeconds = 0,
   ...props
-}: React.ComponentProps<"form">) {
+}: VerifyOtpFormProps) {
+  // 1. Start the cooldown state directly with the server's remaining seconds
+  const [cooldown, setCooldown] = useState<number>(initialCooldownSeconds);
   const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
   const [isLoading, setIsLoading] = useState(false);
-  const [cooldown, setCooldown] = useState(RESEND_COOLDOWN);
 
+  // 2. Keep a ref to track the absolute timestamp safely inside the browser
+  const targetExpiryRef = useRef<number | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
 
-  // Capture phone, email, and mode (login/register/reset) from query params to send to the API
-  const searchParams = useSearchParams();
-  const mode = searchParams.get("mode") || "login";
-  const phone = searchParams.get("phone") || "";
-  const email = searchParams.get("email") || "";
-
-  // Counts down the resend cooldown timer one second at a time
+  // 3. Handle the countdown lifecycle
   useEffect(() => {
-    if (cooldown <= 0) return;
-    const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [cooldown]);
+    // Establish the stable target timestamp using the browser's local clock
+    if (initialCooldownSeconds > 0 && !targetExpiryRef.current) {
+      targetExpiryRef.current = Date.now() + initialCooldownSeconds * 1000;
+    }
 
-  // ─── OTP Input Handlers ───────────────────────────────────────────────────
+    const calculateTimeLeft = () => {
+      if (!targetExpiryRef.current) return 0;
+      const diffInSeconds = Math.ceil((targetExpiryRef.current - Date.now()) / 1000);
+      return Math.max(diffInSeconds, 0);
+    };
 
-  // Accepts only digits, updates state, and advances focus to the next input
+    // Run the interval loop
+    const timer = setInterval(() => {
+      const remaining = calculateTimeLeft();
+      setCooldown(remaining);
+
+      if (remaining <= 0) {
+        clearInterval(timer);
+        targetExpiryRef.current = null; // Reset for post-resend actions
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [initialCooldownSeconds]); // Safely resets if a page refresh updates the prop
+
+  // ─── Update handleResend to match ──────────────────────────────────────────
+  // const handleResend = async () => {
+  //   if (cooldown > 0) return;
+
+  //   try {
+  //     const res = await fetch("/api/auth/resend-otp", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ mode }),
+  //     });
+
+  //     const data = await res.json();
+      
+  //     if (data.data?.retryAfter) {
+  //       const dynamicSeconds = Number(data.data.retryAfter);
+  //       // Sync the ref and state immediately to kickstart the loop again
+  //       targetExpiryRef.current = Date.now() + dynamicSeconds * 1000;
+  //       setCooldown(dynamicSeconds);
+  //       toast.success(data.message || "A fresh verification code has been dispatched.");
+  //     } else if (res.ok) {
+  //       targetExpiryRef.current = Date.now() + 60 * 1000;
+  //       setCooldown(60);
+  //       toast.success("Verification code resent.");
+  //     } else {
+  //       throw new Error(data.message || "Failed to resend code.");
+  //     }
+  //   } catch (error: unknown) {
+  //     const message = error instanceof Error ? error.message : "Failed to resend OTP.";
+  //     toast.error(message);
+  //   }
+  // };
+
+  // ─── Input Utilities ───────────────────────────────────────────────────────
+
   const handleChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return;
     const updated = [...otp];
@@ -77,7 +118,6 @@ export function VerifyOtpForm({
     if (value && index < 5) inputRefs.current[index + 1]?.focus();
   };
 
-  // Moves focus back to the previous input on backspace if the current input is empty
   const handleKeyDown = (
     index: number,
     e: React.KeyboardEvent<HTMLInputElement>,
@@ -87,7 +127,6 @@ export function VerifyOtpForm({
     }
   };
 
-  // Fills all 6 inputs at once when a full OTP is pasted
   const handlePaste = (e: React.ClipboardEvent) => {
     const pasted = e.clipboardData
       .getData("text")
@@ -99,9 +138,8 @@ export function VerifyOtpForm({
     }
   };
 
-  // ─── Actions ──────────────────────────────────────────────────────────────
+  // ─── Form Actions ──────────────────────────────────────────────────────────
 
-  // Submits the OTP to the API and redirects on success
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -110,17 +148,15 @@ export function VerifyOtpForm({
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ otp: otp.join(""), phone, email, mode }),
+        body: JSON.stringify({ otp: otp.join(""), mode }),
       });
 
       const data = await res.json();
-
       if (!res.ok || !data.success)
         throw new Error(data.message || "Invalid OTP");
 
       toast.success("Verified successfully.");
-      const params = new URLSearchParams({ phone, email });
-      router.push(`${redirectMap[mode]}?${params.toString()}`);
+      router.push(`${redirectMap[mode]}`);
     } catch (error: unknown) {
       const message =
         error instanceof Error
@@ -134,24 +170,34 @@ export function VerifyOtpForm({
     }
   };
 
-  // Requests a new OTP and resets the cooldown timer
   const handleResend = async () => {
     if (cooldown > 0) return;
-    setCooldown(RESEND_COOLDOWN);
 
     try {
       const res = await fetch("/api/auth/resend-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, email, mode }),
+        body: JSON.stringify({ mode }),
       });
 
       const data = await res.json();
 
-      if (!res.ok || !data.success)
-        throw new Error(data.message || "Failed to resend OTP");
-
-      toast.success("OTP resent successfully.");
+      // If server returns a 429 rate limit or provides a specific dynamic cooldown window
+      if (data.data?.retryAfter) {
+        const dynamicSeconds = Number(data.data.retryAfter);
+        targetExpiryRef.current = Date.now() + dynamicSeconds * 1000;
+        setCooldown(dynamicSeconds);
+        toast.success(
+          data.message || "A fresh verification code has been dispatched.",
+        );
+      } else if (res.ok) {
+        // Fallback baseline cooldown if endpoint succeeded but didn't specify dynamic tracking time
+        targetExpiryRef.current = Date.now() + 60 * 1000;
+        setCooldown(60);
+        toast.success("Verification code resent.");
+      } else {
+        throw new Error(data.message || "Failed to resend code.");
+      }
     } catch (error: unknown) {
       const message =
         error instanceof Error
@@ -165,7 +211,7 @@ export function VerifyOtpForm({
 
   return (
     <form
-      className={cn("flex flex-col gap-5", className)}
+      className={cn("flex flex-col gap-5")}
       onSubmit={handleSubmit}
       {...props}
     >
@@ -182,30 +228,29 @@ export function VerifyOtpForm({
 
           <h1 className="text-3xl font-bold text-white">OTP Verification</h1>
 
-          {/* Masked delivery targets */}
           <div className="flex flex-col gap-1">
             <p className="text-base text-[#B0BDD0]">
               We&apos;ve sent a 6-digit code to
             </p>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              {phone && (
+              {maskedPhone && (
                 <span className="text-base font-semibold text-white">
-                  {maskPhone(phone)}
+                  {maskedPhone}
                 </span>
               )}
-              {phone && email && (
+              {maskedPhone && maskedEmail && (
                 <span className="text-sm text-[#B0BDD0]">and</span>
               )}
-              {email && (
+              {maskedEmail && (
                 <span className="text-base font-semibold text-white">
-                  {maskEmail(email)}
+                  {maskedEmail}
                 </span>
               )}
             </div>
           </div>
         </div>
 
-        {/* OTP inputs — single digit per box, supports paste */}
+        {/* OTP Inputs */}
         <div className="flex gap-3 justify-between" onPaste={handlePaste}>
           {otp.map((digit, index) => (
             <input
@@ -225,7 +270,7 @@ export function VerifyOtpForm({
           ))}
         </div>
 
-        {/* Submit — disabled until all 6 digits are entered */}
+        {/* Submit */}
         <Button
           type="submit"
           disabled={isLoading || otp.join("").length < 6}
@@ -241,7 +286,7 @@ export function VerifyOtpForm({
           )}
         </Button>
 
-        {/* Resend — locked behind a cooldown timer */}
+        {/* Resend Action */}
         <FieldDescription className="text-left text-[#B0BDD0] text-sm flex items-center gap-1.5">
           {cooldown > 0 ? (
             <>

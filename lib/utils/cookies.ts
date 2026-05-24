@@ -110,9 +110,12 @@ export async function getPendingRegistrationCookie() {
   try {
     const secret = new TextEncoder().encode(process.env.JWT_SECRET!);
     const { payload } = await jwtVerify(token, secret);
-    return payload as { email: string; phoneNumber: string; fullName: string };
+    return payload as {
+      email: string;
+      phoneNumber: string;
+      fullName: string;
+    };
   } catch {
-    // Token expired or tampered with
     return null;
   }
 }

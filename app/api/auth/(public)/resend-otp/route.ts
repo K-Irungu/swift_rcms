@@ -4,64 +4,61 @@ import { z } from "zod";
 import { asyncHandler } from "@/lib/utils/asyncHandler";
 import { validate } from "@/lib/middleware/validate";
 import { ApiError } from "@/lib/utils/ApiError";
-import redis, { connectRedis } from "@/lib/redis";
-import { generateOtp, hashOtp } from "@/lib/utils/otp";
-import { smsService } from "@/lib/services/sms.service";
-import { emailService } from "@/lib/services/email.service";
-import { successResponse } from "@/lib/utils/ApiResponse";
+import { authService } from "@/lib/services/auth.service";
+import { errorResponse, successResponse } from "@/lib/utils/ApiResponse";
+import {
+  getPendingRegistrationCookie,
+  clearPendingRegistrationCookie, // 1. Import your cookie clearing utility
+} from "@/lib/utils/cookies";
 
 // ─── Validation Schema ────────────────────────────────────────────────────────
 
-const schema = z.object({
-  phone: z.string().min(1, "Phone is required"),
-  email: z.string().email("Valid email is required"),
-  mode: z.enum(["register", "login", "reset"]),
+const resendOtpSchema = z.object({
+  mode: z.enum(["register", "reset"]),
 });
 
 // ─── POST /api/auth/resend-otp ────────────────────────────────────────────────
 
 export const POST = asyncHandler(async (req: NextRequest) => {
-  await connectRedis();
+  // Step 1: Validate the request body mode
+  const body = await req.json().catch(() => {
+    throw ApiError.badRequest("Invalid or missing request body");
+  });
+  const { mode } = validate(resendOtpSchema, body);
 
-  // Step 1: Validate request body
-  const body = await req.json();
-  const { phone, email, mode } = validate(schema, body);
+  // Step 2: Grab the encrypted cookie payload
+  const identityPayload = await getPendingRegistrationCookie();
 
-  // Step 2: Look up existing OTP entry and retrieve the original payload
-  // TODO: key prefix will vary by mode when login/reset flows are added
-  const key = `otp:register:${phone}:${email}`;
-  const raw = await redis.get(key);
-
-  // We need the original payload (fullName) to re-store with the new OTP
-  const existing = raw ? JSON.parse(raw) : null;
-
-  if (!existing) {
-    throw new ApiError(
-      400,
-      "No registration session found. Please register again.",
-    );
+  if (!identityPayload) {
+    throw ApiError.badRequest("Your session has expired. Please start over.");
   }
 
-  // Step 3: Delete the existing OTP entry
-  await redis.del(key);
+  // Step 3: Trigger the service layer
+  const result = await authService.resendOtp({
+    email: identityPayload.email,
+    fullName: identityPayload.fullName,
+    mode,
+  });
 
-  // Step 4: Generate a new OTP and hash it
-  const otp = generateOtp();
-  const otpHash = hashOtp(otp);
+  // ─── Crucial Sync Check ─────────────────────────────────────────────────────
+  // If your authService returns a specific signal indicating that the session 
+  // is totally dead in Redis (e.g., result.expired, or result is null)
+  if (!result || result.expired) {
+    // Construct an error response instance
+    const res = errorResponse("Your registration session has expired on our servers. Please sign up again.", 400);
+    
+    // Mutate the error response to append the deletion headers!
+    await clearPendingRegistrationCookie(res);
+    
+    throw errorResponse;
+  }
+  // ────────────────────────────────────────────────────────────────────────────
 
-  // Step 5: Store the new OTP in Redis with a fresh 5 minute TTL
-  await redis.set(
-    key,
-    JSON.stringify({ otpHash, payload: existing.payload, attempts: 0 }),
-    { EX: 300 },
+  // Step 4: Construct the normal generic success response payload
+  const response = successResponse(
+    { retryAfter: result.retryAfter ?? null },
+    "A fresh verification code has been dispatched to your email.",
   );
 
-  // Step 6: Dispatch the new OTP via SMS and email
-  await smsService.send(
-    phone,
-    `Your Swift RCMS OTP is ${otp}. It expires in 5 minutes.`,
-  );
-  await emailService.sendOtp(email, otp);
-
-  return successResponse(null, "OTP resent successfully");
+  return response;
 });
