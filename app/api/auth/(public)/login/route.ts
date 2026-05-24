@@ -5,6 +5,7 @@ import { validate } from "@/lib/middleware/validate";
 import { authService } from "@/lib/services/auth.service";
 import { setAuthCookies } from "@/lib/utils/cookies";
 import { successResponse } from "@/lib/utils/ApiResponse";
+import { ApiError } from "@/lib/utils/ApiError";
 
 // ─── Validation Schema ────────────────────────────────────────────────────────
 
@@ -17,7 +18,9 @@ const validationSchema = z.object({
 
 export const POST = asyncHandler(async (req: NextRequest) => {
   // Step 1: Validate request body
-  const body = await req.json();
+  const body = await req.json().catch(() => {
+    throw ApiError.badRequest("Invalid JSON");
+  });
   const input = validate(validationSchema, body);
 
   // Step 2: Verify credentials and issue tokens

@@ -14,6 +14,7 @@ import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ClientApiError } from "@/lib/utils/ClientApiError";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -31,57 +32,51 @@ export function RegisterForm({
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-// ─── Submit function ────────────────────────────────────────────────────────────────
-
+  // ─── Submit function ────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Step 1: Extract form values and build payload
       const formData = new FormData(e.currentTarget);
-      const firstName = formData.get("firstName") as string;
-      const lastName = formData.get("lastName") as string;
-
       const payload = {
-        fullName: `${firstName} ${lastName}`,
+        fullName: `${formData.get("firstName")} ${formData.get("lastName")}`,
         email: formData.get("email") as string,
         phoneNumber: formData.get("phone") as string,
       };
 
-      // Step 2: Send registration details to the API to generate and dispatch OTP
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
+      const apiResponse = await res.json().catch(() => ({
+        success: false,
+        message: "Unexpected server response",
+      }));
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || "Failed to send OTP");
+      if (!res.ok || !apiResponse.success) {
+        throw new ClientApiError(
+          apiResponse.message || "Failed to register",
+          res.status,
+        );
       }
 
-      // Step 3: Redirect to OTP verification page with phone and email as query params
-      toast.success(
-        "OTP sent to your phone and email. Please verify to complete registration.",
-      );
+      toast.success(apiResponse.message || "Check your email for next steps");
 
-      const params = new URLSearchParams({
-        mode: "register",
-        phone: payload.phoneNumber,
-        email: payload.email,
-      });
-
-      router.push(`/auth/verify-otp?${params.toString()}`);
+      router.push(`/auth/verify-otp?mode=register`);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Sign up failed";
-      toast.error(message);
+      if (error instanceof ClientApiError) {
+        toast.error(error.message);
+      } else {
+        toast.error("Network error. Please check your connection.");
+      }
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (

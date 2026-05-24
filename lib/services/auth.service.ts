@@ -9,10 +9,10 @@ import { generateOtp, hashOtp } from "@/lib/utils/otp";
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
-interface RegisterOtpInput {
-  fullName: string;
+interface RegisterInput {
   email: string;
   phoneNumber: string;
+  fullName: string;
 }
 
 interface LoginInput {
@@ -53,19 +53,17 @@ export const generateTokens = (
 // ─── Auth Service ─────────────────────────────────────────────────────────────
 
 export const authService = {
-
-
-  async handleRegistrationOtp(input: RegisterOtpInput) {
-    const { fullName, email, phoneNumber } = input;
+  async handleRegistrationOtp(input: RegisterInput) {
+    const { fullName, email } = input;
 
     const otp = generateOtp();
     const otpHash = hashOtp(otp);
 
     // Atomic write — prevents duplicate OTPs from concurrent requests
-    const otpKey = `otp:register:${phoneNumber}:${email}`;
+    const otpKey = `otp:register:${email}`;
     const inserted = await redis.set(
       otpKey,
-      JSON.stringify({ otpHash, payload: input, attempts: 0 }),
+      JSON.stringify({ otpHash, attempts: 0 }),
       { EX: 300, NX: true },
     );
 
@@ -73,12 +71,50 @@ export const authService = {
       throw ApiError.badRequest("OTP already sent. Please wait and try again.");
     }
 
-    // Email sends after Redis confirms the write — OTP is verifiable on arrival
-    await emailService.sendOtp(email, otp, fullName);
+    try {
+      await emailService.sendOtp(email, otp, fullName);
+    } catch {
+      await redis.del(otpKey);
+      throw ApiError.internal("Failed to send OTP. Please try again.");
+    }
   },
 
+  async register(input: RegisterInput) {
+    const { email, phoneNumber, fullName } = input;
 
-  
+    // Guard against duplicate requests before hitting DB
+    const existsKey = `otp:register:exists:${input.email}`;
+    const otpKey = `otp:register:${input.email}`;
+
+    const [existsLock, otpLock] = await Promise.all([
+      redis.get(existsKey), // "have we seen this email before and it was registered?"
+      redis.get(otpKey), // "has this email already been sent an OTP recently?"
+    ]);
+
+    if (existsLock || otpLock) return null;
+
+    const existingUser = await User.findOne({ email: input.email })
+      .select("fullName")
+      .lean();
+
+    if (!existingUser) {
+      await this.handleRegistrationOtp(input);
+    } else {
+      await redis.set(existsKey, "1", { EX: 300, NX: true });
+      try {
+        await emailService.sendWarningToExistingUser(
+          email,
+          existingUser.fullName,
+        );
+      } catch {
+        await redis.del(existsKey);
+        throw ApiError.internal("Failed to send email. Please try again.");
+      }
+    }
+
+    return { email, phoneNumber, fullName };
+  },
+
   async login(input: LoginInput) {
     // Step 1: Find user and verify account status
     const user = await User.findOne({ email: input.email }).select(
