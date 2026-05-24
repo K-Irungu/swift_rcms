@@ -4,14 +4,14 @@ import { validate } from "@/lib/middleware/validate";
 import { ApiError } from "@/lib/utils/ApiError";
 import redis from "@/lib/redis";
 import { hashOtp } from "@/lib/utils/otp";
+import { getPendingRegistrationCookie, clearPendingRegistrationCookie } from "@/lib/utils/cookies";
+
 
 // ─── Validation Schema ────────────────────────────────────────────────────────
 
 const schema = z.object({
   otp: z.string().length(6, "OTP must be 6 digits"),
-  email: z.string().email("Valid email is required"),
-  phone: z.string().optional(),
-  mode: z.enum(["register", "login", "reset"]),
+  mode: z.enum(["register", "reset"]),
 });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -25,8 +25,8 @@ interface StoredOtp {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getOtpKey(mode: string, email: string, phone?: string): string {
-  if (mode === "register") return `otp:register:${phone}:${email}`;
+function getOtpKey(mode: string, email: string): string {
+  if (mode === "register") return `otp:register:${email}`;
   if (mode === "reset") return `otp:reset:${email}`;
   return `otp:${mode}:${email}`;
 }
@@ -38,10 +38,14 @@ export async function POST(req: NextRequest) {
 
     // Step 1: Validate request body
     const body = await req.json();
-    const { otp, phone, email, mode } = validate(schema, body);
+    const { otp, mode } = validate(schema, body);
+
+        const pendingUser = await getPendingRegistrationCookie();
+      
+    
 
     // Step 2: Look up the OTP entry in Redis based on mode
-    const key = getOtpKey(mode, email, phone);
+    const key = getOtpKey(mode, pendingUser?.email ?? "unknown");
     const raw = await redis.get(key);
 
     if (!raw) {
@@ -76,9 +80,8 @@ export async function POST(req: NextRequest) {
     // Step 6: Store verified session based on mode
     if (mode === "register") {
       await redis.set(
-        `verified:register:${phone}:${email}`,
+        `verified:register:${pendingUser?.email}`,
         JSON.stringify({
-          phone,
           email: stored.payload?.email,
           fullName: stored.payload?.fullName,
         }),
@@ -88,8 +91,8 @@ export async function POST(req: NextRequest) {
 
     if (mode === "reset") {
       await redis.set(
-        `verified:reset:${email}`,
-        JSON.stringify({ email, userId: stored.userId }),
+        `verified:reset:${pendingUser?.email}`,
+        JSON.stringify({ email: pendingUser?.email, userId: stored.userId }),
         { EX: 600 }, // 10 minutes to complete password reset
       );
     }

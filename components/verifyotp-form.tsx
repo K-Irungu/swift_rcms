@@ -77,36 +77,36 @@ export function VerifyOtpForm({
   }, [initialCooldownSeconds]); // Safely resets if a page refresh updates the prop
 
   // ─── Update handleResend to match ──────────────────────────────────────────
-  // const handleResend = async () => {
-  //   if (cooldown > 0) return;
+  const handleResend = async () => {
+    if (cooldown > 0) return;
 
-  //   try {
-  //     const res = await fetch("/api/auth/resend-otp", {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify({ mode }),
-  //     });
+    try {
+      const res = await fetch("/api/auth/resend-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode }),
+      });
 
-  //     const data = await res.json();
+      const data = await res.json();
       
-  //     if (data.data?.retryAfter) {
-  //       const dynamicSeconds = Number(data.data.retryAfter);
-  //       // Sync the ref and state immediately to kickstart the loop again
-  //       targetExpiryRef.current = Date.now() + dynamicSeconds * 1000;
-  //       setCooldown(dynamicSeconds);
-  //       toast.success(data.message || "A fresh verification code has been dispatched.");
-  //     } else if (res.ok) {
-  //       targetExpiryRef.current = Date.now() + 60 * 1000;
-  //       setCooldown(60);
-  //       toast.success("Verification code resent.");
-  //     } else {
-  //       throw new Error(data.message || "Failed to resend code.");
-  //     }
-  //   } catch (error: unknown) {
-  //     const message = error instanceof Error ? error.message : "Failed to resend OTP.";
-  //     toast.error(message);
-  //   }
-  // };
+      if (data.data?.retryAfter) {
+        const dynamicSeconds = Number(data.data.retryAfter);
+        // Sync the ref and state immediately to kickstart the loop again
+        targetExpiryRef.current = Date.now() + dynamicSeconds * 1000;
+        setCooldown(dynamicSeconds);
+        toast.success(data.message || "A fresh verification code has been dispatched.");
+      } else if (res.ok) {
+        targetExpiryRef.current = Date.now() + 60 * 1000;
+        setCooldown(60);
+        toast.success("Verification code resent.");
+      } else {
+        throw new Error(data.message || "Failed to resend code.");
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to resend OTP.";
+      toast.error(message);
+    }
+  };
 
   // ─── Input Utilities ───────────────────────────────────────────────────────
 
@@ -170,42 +170,42 @@ export function VerifyOtpForm({
     }
   };
 
-  const handleResend = async () => {
-    if (cooldown > 0) return;
+  // const handleResend = async () => {
+  //   if (cooldown > 0) return;
 
-    try {
-      const res = await fetch("/api/auth/resend-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode }),
-      });
+  //   try {
+  //     const res = await fetch("/api/auth/resend-otp", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ mode }),
+  //     });
 
-      const data = await res.json();
+  //     const data = await res.json();
 
-      // If server returns a 429 rate limit or provides a specific dynamic cooldown window
-      if (data.data?.retryAfter) {
-        const dynamicSeconds = Number(data.data.retryAfter);
-        targetExpiryRef.current = Date.now() + dynamicSeconds * 1000;
-        setCooldown(dynamicSeconds);
-        toast.success(
-          data.message || "A fresh verification code has been dispatched.",
-        );
-      } else if (res.ok) {
-        // Fallback baseline cooldown if endpoint succeeded but didn't specify dynamic tracking time
-        targetExpiryRef.current = Date.now() + 60 * 1000;
-        setCooldown(60);
-        toast.success("Verification code resent.");
-      } else {
-        throw new Error(data.message || "Failed to resend code.");
-      }
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Failed to resend OTP. Please try again.";
-      toast.error(message);
-    }
-  };
+  //     // If server returns a 429 rate limit or provides a specific dynamic cooldown window
+  //     if (data.data?.retryAfter) {
+  //       const dynamicSeconds = Number(data.data.retryAfter);
+  //       targetExpiryRef.current = Date.now() + dynamicSeconds * 1000;
+  //       setCooldown(dynamicSeconds);
+  //       toast.success(
+  //         data.message || "A fresh verification code has been dispatched.",
+  //       );
+  //     } else if (res.ok) {
+  //       // Fallback baseline cooldown if endpoint succeeded but didn't specify dynamic tracking time
+  //       targetExpiryRef.current = Date.now() + 60 * 1000;
+  //       setCooldown(60);
+  //       toast.success("Verification code resent.");
+  //     } else {
+  //       throw new Error(data.message || "Failed to resend code.");
+  //     }
+  //   } catch (error: unknown) {
+  //     const message =
+  //       error instanceof Error
+  //         ? error.message
+  //         : "Failed to resend OTP. Please try again.";
+  //     toast.error(message);
+  //   }
+  // };
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
