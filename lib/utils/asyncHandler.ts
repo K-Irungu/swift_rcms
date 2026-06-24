@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ApiError } from './ApiError'
 import { errorResponse } from './ApiResponse'
+import { connectAll } from '../startup'
 
 type RouteHandler = (
   req: NextRequest,
@@ -12,6 +13,7 @@ type RouteHandler = (
 export function asyncHandler(handler: RouteHandler): RouteHandler {
   return async (req, context) => {
     try {
+      await connectAll() // Ensure all connections (DB, Redis) are established before handling the request
       return await handler(req, context)
     } catch (error) {
       if (error instanceof ApiError) {

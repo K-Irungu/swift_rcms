@@ -53,30 +53,34 @@ export const generateTokens = (
 // ─── Auth Service ─────────────────────────────────────────────────────────────
 
 export const authService = {
-  
   async handleRegistrationOtp(input: RegisterOtpInput) {
-    await connectRedis();
 
     // Step 1: Capture fullname, email and phoneNumber from input
     const { fullName, email, phoneNumber } = input;
 
-    // Step 2: Generate otp and send to new user via email
+    // Step 2: Generate otp and hash it
     const otp = generateOtp();
-    await emailService.sendOtp(email, otp, fullName);
-
-    // Step 3: Structure redis key, and store hashed OTP with payload
-    const otpKey = `otp:register:${phoneNumber}:${email}`;
     const otpHash = hashOtp(otp);
 
-    await redis.set(
+    // Step 3: Atomic check + write in redis
+    const otpKey = `otp:register:${phoneNumber}:${email}`;
+    const inserted = await redis.set(
       otpKey,
       JSON.stringify({ otpHash, payload: input, attempts: 0 }),
-      { EX: 300 },
+      { EX: 300, NX: true },
     );
+
+    // Step 4: If null — key already existed, it snuck in between our route check and now
+    if (!inserted) { throw ApiError.badRequest("OTP already sent. Please wait and try again.") }
+
+    
+    // QUEUE
+    // Step 5: Send email only after otp is ready for verification
+    await emailService.sendOtp(email, otp, fullName);
   },
 
   async login(input: LoginInput) {
-    await connectDB();
+
 
     // Step 1: Find user and verify account status
     const user = await User.findOne({ email: input.email }).select(
@@ -103,7 +107,7 @@ export const authService = {
   },
 
   async refresh(token: string) {
-    await connectDB();
+
 
     // Step 1: Verify and decode the refresh token
     let payload: { userId: string };
@@ -136,7 +140,7 @@ export const authService = {
 
   // Invalidates the refresh token, preventing future token renewals
   async logout(userId: string) {
-    await connectDB();
+
     await User.findByIdAndUpdate(userId, { refreshToken: null });
   },
 };

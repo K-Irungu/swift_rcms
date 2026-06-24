@@ -4,9 +4,9 @@ import { asyncHandler } from "@/lib/utils/asyncHandler";
 import { validate } from "@/lib/middleware/validate";
 import { authService } from "@/lib/services/auth.service";
 import { successResponse } from "@/lib/utils/ApiResponse";
-import { connectDB } from "../../../../../lib/db";
 import { emailService } from "../../../../../lib/services/email.service";
 import { User } from "@/lib/models/User";
+import redis from "@/lib/redis";
 
 // ─── Validation Schema ────────────────────────────────────────────────────────
 
@@ -19,27 +19,39 @@ const validationSchema = z.object({
 // ─── POST /api/auth/register ──────────────────────────────────────────────────
 
 export const POST = asyncHandler(async (req: NextRequest) => {
-  await connectDB();
-  
-  // Step 1: Validate request body
+
   const body = await req.json();
   const input = validate(validationSchema, body);
 
-  // Step 2: Check if email existsin DB
+  // Check Redis first — before touching DB on either path
+  const existsKey = `otp:register:exists:${input.email}`;
+  const otpKey = `otp:register:${input.phoneNumber}:${input.email}`;
+
+  // Fast Redis check — stops repeat requests before DB query
+  const [existsLock, otpLock] = await Promise.all([
+    redis.get(existsKey), // ← "have we seen this email before and it was registered?"
+    redis.get(otpKey), // ← "has this email already been sent an OTP recently?"
+  ]);
+
+  if (existsLock || otpLock) {
+    return successResponse("Check your email for next steps");
+  }
+
+  // Now hit the DB
   const existingUser = await User.findOne({ email: input.email })
     .select("fullName")
     .lean();
 
-  // Step 3: If email doesn't exist, send registration OTP, otherwise send "account exists" email to existing user email
   if (!existingUser) {
     await authService.handleRegistrationOtp(input);
   } else {
+    // Set Redis key atomically — rate limits repeat requests
+    await redis.set(existsKey, "1", { EX: 300, NX: true });
     await emailService.sendWarningToExistingUser(
       input.email,
       existingUser.fullName,
     );
   }
 
-  // Step 4: Return generic success response in both cases to prevent email enumeration
   return successResponse("Check your email for next steps");
 });
