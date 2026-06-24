@@ -8,11 +8,6 @@
 
 - [Overview](#overview)
 - [Tech Stack](#tech-stack)
-- [Architecture](#architecture)
-- [Modules](#modules)
-- [Real-Time Infrastructure](#real-time-infrastructure)
-- [Authentication & Access Control](#authentication--access-control)
-- [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
 - [Environment Variables](#environment-variables)
 - [API Reference](#api-reference)
