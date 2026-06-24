@@ -3,14 +3,14 @@ import { z } from "zod";
 import { asyncHandler } from "@/lib/utils/asyncHandler";
 import { validate } from "@/lib/middleware/validate";
 import { authService } from "@/lib/services/auth.service";
+import { emailService } from "@/lib/services/email.service";
 import { successResponse } from "@/lib/utils/ApiResponse";
-import { emailService } from "../../../../../lib/services/email.service";
 import { User } from "@/lib/models/User";
 import redis from "@/lib/redis";
 
 // ─── Validation Schema ────────────────────────────────────────────────────────
 
-const validationSchema = z.object({
+const registrationSchema = z.object({
   fullName: z.string().min(2),
   email: z.string().email(),
   phoneNumber: z.string().min(10),
@@ -19,33 +19,29 @@ const validationSchema = z.object({
 // ─── POST /api/auth/register ──────────────────────────────────────────────────
 
 export const POST = asyncHandler(async (req: NextRequest) => {
-
   const body = await req.json();
-  const input = validate(validationSchema, body);
+  const input = validate(registrationSchema, body);
 
-  // Check Redis first — before touching DB on either path
+  // Guard against duplicate requests before hitting DB
   const existsKey = `otp:register:exists:${input.email}`;
   const otpKey = `otp:register:${input.phoneNumber}:${input.email}`;
 
-  // Fast Redis check — stops repeat requests before DB query
   const [existsLock, otpLock] = await Promise.all([
-    redis.get(existsKey), // ← "have we seen this email before and it was registered?"
-    redis.get(otpKey), // ← "has this email already been sent an OTP recently?"
+    redis.get(existsKey),     // "have we seen this email before and it was registered?"
+    redis.get(otpKey),       // "has this email already been sent an OTP recently?"
   ]);
 
-  if (existsLock || otpLock) {
-    return successResponse("Check your email for next steps");
-  }
+  if (existsLock || otpLock) { return successResponse("Check your email for next steps")}
 
-  // Now hit the DB
   const existingUser = await User.findOne({ email: input.email })
     .select("fullName")
     .lean();
 
   if (!existingUser) {
+    // New email — generate and send registration OTP
     await authService.handleRegistrationOtp(input);
   } else {
-    // Set Redis key atomically — rate limits repeat requests
+    // Known email — notify without revealing registration status
     await redis.set(existsKey, "1", { EX: 300, NX: true });
     await emailService.sendWarningToExistingUser(
       input.email,
