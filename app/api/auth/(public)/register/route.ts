@@ -6,7 +6,8 @@ import { authService } from "@/lib/services/auth.service";
 import { successResponse } from "@/lib/utils/ApiResponse";
 import { emailService } from "../../../../../lib/services/email.service";
 import { User } from "@/lib/models/User";
-import redis from "@/lib/redis";
+
+import redis, { connectRedis } from "@/lib/redis";
 
 // ─── Validation Schema ────────────────────────────────────────────────────────
 
@@ -19,6 +20,9 @@ const validationSchema = z.object({
 // ─── POST /api/auth/register ──────────────────────────────────────────────────
 
 export const POST = asyncHandler(async (req: NextRequest) => {
+
+      await connectRedis();
+
 
   const body = await req.json();
   const input = validate(validationSchema, body);
