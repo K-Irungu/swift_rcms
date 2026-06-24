@@ -18,20 +18,24 @@ import type { TabKey } from "./_types";
 
 export default function SinglePropertyPage() {
   const { id: slug } = useParams<{ id: string }>();
-  const router       = useRouter();
+  const router = useRouter();
   const searchParams = useSearchParams();
 
-  const { property, setProperty, units, setUnits, contacts, setContacts, loading, notFound } =
-    useProperty(slug);
+  const {
+    property,
+    setProperty,
+    units,
+    setUnits,
+    contacts,
+    setContacts,
+    loading,
+    notFound,
+  } = useProperty(slug);
 
-  const [activeTab,    setActiveTab]    = useState<TabKey>("overview");
-  const [sheetOpen,    setSheetOpen]    = useState(false);
-  const [tenantCount,  setTenantCount]  = useState(0);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [tenantCount, setTenantCount] = useState(0);
 
-  useEffect(() => {
-    const tab = searchParams.get("tab") as TabKey | null;
-    if (tab) setActiveTab(tab);
-  }, [searchParams]);
+  const activeTab = (searchParams.get("tab") as TabKey | null) ?? "overview";
 
   if (loading) return <PageSkeleton />;
 
@@ -39,8 +43,12 @@ export default function SinglePropertyPage() {
     return (
       <div className="flex flex-col bg-[#F0F4F8] min-h-full w-full items-center justify-center gap-3 p-8">
         <Building2 className="size-8 text-muted-foreground/40" />
-        <p className="text-sm font-medium text-foreground">Property not found</p>
-        <p className="text-xs text-muted-foreground">This property may have been removed.</p>
+        <p className="text-sm font-medium text-foreground">
+          Property not found
+        </p>
+        <p className="text-xs text-muted-foreground">
+          This property may have been removed.
+        </p>
         <Button
           variant="outline"
           className="h-8 text-xs gap-1.5 mt-1 cursor-pointer"
@@ -68,7 +76,7 @@ export default function SinglePropertyPage() {
           units={units}
           tenantCount={tenantCount}
           activeTab={activeTab}
-          onTabChange={setActiveTab}
+          onTabChange={(tab) => router.push(`?tab=${tab}`)}
           onEdit={() => setSheetOpen(true)}
         />
 
@@ -93,7 +101,11 @@ export default function SinglePropertyPage() {
               property={property}
               units={units}
               slug={slug}
-              onUnitUpdate={(updated) => setUnits((prev) => prev.map((u) => u._id === updated._id ? updated : u))}
+              onUnitUpdate={(updated) =>
+                setUnits((prev) =>
+                  prev.map((u) => (u._id === updated._id ? updated : u)),
+                )
+              }
             />
           )}
           {activeTab === "tenants" && (
