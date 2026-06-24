@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { validate } from "@/lib/middleware/validate";
 import { ApiError } from "@/lib/utils/ApiError";
-import redis, { connectRedis } from "@/lib/redis";
+import redis from "@/lib/redis";
 import { hashOtp } from "@/lib/utils/otp";
 
 // ─── Validation Schema ────────────────────────────────────────────────────────
@@ -35,7 +35,6 @@ function getOtpKey(mode: string, email: string, phone?: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    await connectRedis();
 
     // Step 1: Validate request body
     const body = await req.json();

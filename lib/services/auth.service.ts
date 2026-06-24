@@ -54,6 +54,7 @@ export const generateTokens = (
 
 export const authService = {
 
+
   async handleRegistrationOtp(input: RegisterOtpInput) {
     const { fullName, email, phoneNumber } = input;
 
@@ -75,6 +76,7 @@ export const authService = {
     // Email sends after Redis confirms the write — OTP is verifiable on arrival
     await emailService.sendOtp(email, otp, fullName);
   },
+
 
   
   async login(input: LoginInput) {

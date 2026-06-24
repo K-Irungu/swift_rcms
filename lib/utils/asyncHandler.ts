@@ -19,7 +19,6 @@ export function asyncHandler(handler: RouteHandler): RouteHandler {
       if (error instanceof ApiError) {
         return errorResponse(error.message, error.statusCode, error.errors)
       }
-      console.error('[Unhandled Error]', error)
       return errorResponse('Internal server error', 500)
     }
   }
