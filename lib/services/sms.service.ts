@@ -13,12 +13,12 @@ export const smsService = {
     try {
       const result = await sms.send({
         to: phoneNumber,
-        message
-        // Uncomment at node_modules/@types/africastalking/index.d.ts 
+        message,
+        // Uncomment at node_modules/@types/africastalking/index.d.ts
         // Commented out sender here and in type definition to avoid issues with sandbox mode. In production,  would include the sender ID.
         // Messages and otps found in africas talking dashboard
-        // from: sender, 
-      });
+        // from: sender,
+      } as Parameters<typeof sms.send>[0]);
 
       console.log("SMS sent:", result);
       return result;
