@@ -1,10 +1,28 @@
 import { VerifyOtpForm } from "@/components/verifyotp-form";
 import Image from "next/image";
 import { Suspense } from "react";
-
+import { redirect } from "next/navigation";
+import { NextResponse } from "next/server";
+import { getPendingRegistrationCookie, clearPendingRegistrationCookie } from "@/lib/utils/cookies";
+import { authService } from "@/lib/services/auth.service";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const LOGO_CLIP = "polygon(0 0,100% 0,100% 100%,27% 100%,0 73%)";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// +254712345678 → +2547*****678
+function maskPhone(phone: string) {
+  if (phone.length < 6) return phone;
+  return phone.slice(0, 4) + "*****" + phone.slice(-3);
+}
+
+// john.doe@example.com → jo***@example.com
+function maskEmail(email: string) {
+  const [local, domain] = email.split("@");
+  if (!domain) return email;
+  return local.slice(0, 2) + "***@" + domain;
+}
 
 // ─── Subcomponents ────────────────────────────────────────────────────────────
 
@@ -28,14 +46,17 @@ function Logo() {
 function Footer() {
   return (
     <div className="flex gap-4 justify-start text-sm text-[#B0BDD0]">
-      <a href="#" className="hover:text-white transition-colors">Terms & Conditions</a>
+      <a href="#" className="hover:text-white transition-colors">
+        Terms & Conditions
+      </a>
       <span>·</span>
-      <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
+      <a href="#" className="hover:text-white transition-colors">
+        Privacy Policy
+      </a>
     </div>
   );
 }
 
-// Dashboard image panel — visible on lg screens, hidden on 2xl (replaced by side columns)
 function HeroPanel() {
   return (
     <div className="relative hidden lg:flex 2xl:hidden flex-col bg-[#1A2E54] py-20 pl-20 overflow-hidden gap-12">
@@ -47,7 +68,6 @@ function HeroPanel() {
           Oversee rent, tenants and payments all in one place anytime, anywhere.
         </p>
       </div>
-
       <div className="z-10 w-full h-full flex flex-col justify-center overflow-visible">
         <div
           className="z-10 flex-1 relative -rotate-3 rounded-l-xl border border-[#B0BDD0]/40 overflow-hidden -mr-5 max-h-[520px]"
@@ -63,43 +83,78 @@ function HeroPanel() {
           />
         </div>
       </div>
-
       <div className="flex-1" />
+    </div>
+  );
+}
+
+function PageShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="grid min-h-svh lg:grid-cols-2 bg-[#0F1F3D] 2xl:grid-cols-[1fr_auto_1fr]">
+      <div className="hidden 2xl:block bg-[#0F1F3D]" />
+      <div className="flex flex-col p-9 md:p-20 lg:col-span-1 w-full 2xl:max-w-xl 2xl:w-xl">
+        <div className="flex flex-col flex-1 2xl:justify-center 2xl:gap-10">
+          <Logo />
+          <div className="flex flex-1 items-center justify-start 2xl:flex-none">
+            <div className="w-full">{children}</div>
+          </div>
+          <Footer />
+        </div>
+      </div>
+      <HeroPanel />
+      <div className="hidden 2xl:block bg-[#0F1F3D]" />
     </div>
   );
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function VerifyOtpPage() {
+export default async function VerifyOtpPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mode?: string }>;
+}) {
+  const resolvedSearchParams = await searchParams;
+  const mode = resolvedSearchParams.mode ?? "login";
+
+  if (mode === "register") {
+    const pendingUser = await getPendingRegistrationCookie();
+
+    // Cookie missing or expired — send back to register
+    if (!pendingUser) redirect("/auth/register");
+const remainingSeconds = await authService.getRegistrationTtl(pendingUser.email);
+
+console.log("Remaining seconds for OTP:", remainingSeconds);
+if (remainingSeconds <= 0) {
+      // Redis is wiped, but cookie was stale! 
+      // We must clear the cookie so they aren't stuck in a redirect loop.
+      const syncResponse = NextResponse.redirect(new URL("/auth/register", "http://localhost:3000")); // Fallback URL builder
+      await clearPendingRegistrationCookie(syncResponse);
+      
+      redirect("/auth/register");
+    }
+
+
+    return (
+      <PageShell>
+        <Suspense fallback={null}>
+          <VerifyOtpForm
+            mode={mode}
+            maskedEmail={maskEmail(pendingUser.email)}
+            maskedPhone={maskPhone(pendingUser.phoneNumber)}
+            initialCooldownSeconds={remainingSeconds} // Guaranteed accurate and in-sync
+          />
+        </Suspense>
+      </PageShell>
+    );
+  }
+
+  // Login and reset flows — no cookie required
   return (
-    <div className="grid min-h-svh lg:grid-cols-2 bg-[#0F1F3D] 2xl:grid-cols-[1fr_auto_1fr]">
-
-      {/* Left spacer — 2xl only */}
-      <div className="hidden 2xl:block bg-[#0F1F3D]" />
-
-      {/* Form panel */}
-      <div className="flex flex-col p-9 md:p-20 lg:col-span-1 w-full 2xl:max-w-xl 2xl:w-xl">
-        <div className="flex flex-col flex-1 2xl:justify-center 2xl:gap-10">
-          <Logo />
-
-          <div className="flex flex-1 items-center justify-start 2xl:flex-none">
-            <div className="w-full">
-              <Suspense fallback={null}>
-                <VerifyOtpForm />
-              </Suspense>
-            </div>
-          </div>
-
-          <Footer />
-        </div>
-      </div>
-
-      <HeroPanel />
-
-      {/* Right spacer — 2xl only */}
-      <div className="hidden 2xl:block bg-[#0F1F3D]" />
-
-    </div>
+    <PageShell>
+      <Suspense fallback={null}>
+        <VerifyOtpForm mode={mode} />
+      </Suspense>
+    </PageShell>
   );
 }

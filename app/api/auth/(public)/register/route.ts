@@ -3,10 +3,9 @@ import { z } from "zod";
 import { asyncHandler } from "@/lib/utils/asyncHandler";
 import { validate } from "@/lib/middleware/validate";
 import { authService } from "@/lib/services/auth.service";
-import { emailService } from "@/lib/services/email.service";
 import { successResponse } from "@/lib/utils/ApiResponse";
-import { User } from "@/lib/models/User";
-import redis from "@/lib/redis";
+import { ApiError } from "@/lib/utils/ApiError";
+import { setPendingRegistrationCookie } from "@/lib/utils/cookies";
 
 // ─── Validation Schema ────────────────────────────────────────────────────────
 
@@ -19,35 +18,22 @@ const registrationSchema = z.object({
 // ─── POST /api/auth/register ──────────────────────────────────────────────────
 
 export const POST = asyncHandler(async (req: NextRequest) => {
-  const body = await req.json();
+  // Step 1: Validate request body
+  const body = await req.json().catch(() => {
+    throw ApiError.badRequest("Invalid request body");
+  });
   const input = validate(registrationSchema, body);
 
-  // Guard against duplicate requests before hitting DB
-  const existsKey = `otp:register:exists:${input.email}`;
-  const otpKey = `otp:register:${input.phoneNumber}:${input.email}`;
+  // Step 2: Process registration and send OTP email
+  const result = await authService.register(input);
 
-  const [existsLock, otpLock] = await Promise.all([
-    redis.get(existsKey),     // "have we seen this email before and it was registered?"
-    redis.get(otpKey),       // "has this email already been sent an OTP recently?"
-  ]);
+  // Step 3: Return a standardized generic success response
+  const response = successResponse(null, "Check your email for next steps");
 
-  if (existsLock || otpLock) { return successResponse("Check your email for next steps")}
-
-  const existingUser = await User.findOne({ email: input.email })
-    .select("fullName")
-    .lean();
-
-  if (!existingUser) {
-    // New email — generate and send registration OTP
-    await authService.handleRegistrationOtp(input);
-  } else {
-    // Known email — notify without revealing registration status
-    await redis.set(existsKey, "1", { EX: 300, NX: true });
-    await emailService.sendWarningToExistingUser(
-      input.email,
-      existingUser.fullName,
-    );
+  // Step 4: Set httpOnly cookies for user details to maintain session on the client
+  if (!result.waiting) {
+    await setPendingRegistrationCookie(response, input);
   }
 
-  return successResponse("Check your email for next steps");
+  return response;
 });

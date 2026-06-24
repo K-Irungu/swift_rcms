@@ -9,10 +9,10 @@ import { generateOtp, hashOtp } from "@/lib/utils/otp";
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
-interface RegisterOtpInput {
-  fullName: string;
+interface RegisterInput {
   email: string;
-  phoneNumber: string;
+  fullName: string;
+  mode?: "register" | "reset"
 }
 
 interface LoginInput {
@@ -54,18 +54,24 @@ export const generateTokens = (
 
 export const authService = {
 
+  // async resendOtp(email: string) {
 
-  async handleRegistrationOtp(input: RegisterOtpInput) {
-    const { fullName, email, phoneNumber } = input;
+  // }
+
+
+
+
+  async handleRegistrationOtp(input: RegisterInput) {
+    const { fullName, email } = input;
 
     const otp = generateOtp();
     const otpHash = hashOtp(otp);
 
     // Atomic write — prevents duplicate OTPs from concurrent requests
-    const otpKey = `otp:register:${phoneNumber}:${email}`;
+    const otpKey = `otp:register:${email}`;
     const inserted = await redis.set(
       otpKey,
-      JSON.stringify({ otpHash, payload: input, attempts: 0 }),
+      JSON.stringify({ otpHash, attempts: 0 }),
       { EX: 300, NX: true },
     );
 
@@ -73,12 +79,92 @@ export const authService = {
       throw ApiError.badRequest("OTP already sent. Please wait and try again.");
     }
 
-    // Email sends after Redis confirms the write — OTP is verifiable on arrival
-    await emailService.sendOtp(email, otp, fullName);
+    try {
+      await emailService.sendOtp(email, otp, fullName);
+    } catch {
+      await redis.del(otpKey);
+      throw ApiError.internal("Failed to send OTP. Please try again.");
+    }
   },
 
 
+async resendOtp(input: RegisterInput & { mode: string }) {
+  const { email, fullName, mode } = input;
+  const otpKey = `otp:${mode}:${email}`;
+
+  // 1. Check if the session actually exists in Redis before doing anything
+  const existingSession = await redis.get(otpKey);
   
+  if (!existingSession) {
+    // Return a structural signal letting the route handler know the cache is dead
+    return { expired: true, retryAfter: null };
+  }
+
+  // 2. Generate a fresh cryptographically secure OTP and hash it
+  const otp = generateOtp();
+  const otpHash = hashOtp(otp);
+
+  // 3. Overwrite the existing Redis key, preserving the 5-minute window and resetting attempts
+  await redis.set(
+    otpKey,
+    JSON.stringify({ otpHash, attempts: 0 }),
+    { EX: 300 }
+  );
+
+  try {
+    // 4. Dispatch the fresh code to the user
+    await emailService.sendOtp(email, otp, fullName);
+  } catch (error) {
+    // If the email service fails, restore the previous state or delete to let them try again safely
+    await redis.del(otpKey);
+    throw ApiError.internal("Failed to send verification email. Please try again.");
+  }
+
+  return { expired: false, retryAfter: 300 };
+},
+
+  async register(input: RegisterInput) {
+    const { email } = input;
+
+    const existsKey = `otp:register:exists:${email}`;
+    const otpKey = `otp:register:${email}`;
+
+    const [existsLock, otpLock] = await Promise.all([
+      redis.get(existsKey),
+      redis.get(otpKey),
+    ]);
+
+    if (existsLock || otpLock) {
+      // Get remaining TTL so frontend can show a countdown
+      const ttl = await redis.ttl(otpLock ? otpKey : existsKey);
+
+      return {
+        waiting: true,
+        retryAfter: ttl, // seconds remaining
+      };
+    }
+    const existingUser = await User.findOne({ email })
+      .select("fullName")
+      .lean();
+
+    if (!existingUser) {
+      await this.handleRegistrationOtp(input);
+    } else {
+      await redis.set(existsKey, "1", { EX: 300, NX: true });
+      try {
+        await emailService.sendWarningToExistingUser(
+          email,
+          existingUser.fullName,
+        );
+      } catch {
+        await redis.del(existsKey);
+        throw ApiError.internal("Failed to send email. Please try again.");
+      }
+    }
+
+  return { waiting: false, retryAfter: null };
+  },
+
   async login(input: LoginInput) {
     // Step 1: Find user and verify account status
     const user = await User.findOne({ email: input.email }).select(
@@ -138,4 +224,17 @@ export const authService = {
   async logout(userId: string) {
     await User.findByIdAndUpdate(userId, { refreshToken: null });
   },
+
+
+  // Inside authService:
+async getRegistrationTtl(email: string): Promise<number> {
+  const otpKey = `otp:register:${email}`;
+  const ttl = await redis.ttl(otpKey);
+  
+  console.log(`TTL for ${otpKey}:`, ttl); // Debug log to verify TTL value
+  // // redis.ttl returns -2 if the key does not exist
+  // if (ttl < 0) return 0; 
+  return ttl; // returns remaining seconds (e.g., 245)
+}
 };
+

@@ -9,6 +9,8 @@ import { Expense } from "@/lib/models/Expense";
 import { getCurrentUser } from "@/lib/utils/auth";
 import { successResponse, errorResponse } from "@/lib/utils/ApiResponse";
 
+type WithFullName = { _id: unknown; fullName?: string; unitNumber?: string };
+
 async function resolveAndAuthorize(slug: string) {
   const authUser = await getCurrentUser();
   if (!authUser) return { ok: false as const, res: errorResponse("Unauthorized", 401) };
@@ -121,7 +123,7 @@ export async function GET(
         return {
           unitId:      String(unit._id),
           unitNumber:  unit.unitNumber,
-          tenantName:  (lease.tenantId as any)?.fullName ?? null,
+          tenantName:  (lease.tenantId as WithFullName)?.fullName ?? null,
           monthlyRent: lease.monthlyRent,
           amountPaid,
           balance,
@@ -191,14 +193,14 @@ export async function GET(
       .lean();
 
     const tenantNameByUnitId = new Map(
-      activeLeases.map((l) => [String(l.unitId), (l.tenantId as any)?.fullName ?? null]),
+      activeLeases.map((l) => [String(l.unitId), (l.tenantId as WithFullName)?.fullName ?? null]),
     );
 
     const waterRows = waterReadings.map((r) => {
-      const uid = (r.unitId as any)?._id ? String((r.unitId as any)._id) : String(r.unitId);
+      const uid = (r.unitId as WithFullName)?._id ? String((r.unitId as WithFullName)._id) : String(r.unitId);
       return {
         _id:         String(r._id),
-        unitNumber:  (r.unitId as any)?.unitNumber ?? "—",
+        unitNumber:  (r.unitId as WithFullName)?.unitNumber ?? "—",
         tenantName:  tenantNameByUnitId.get(uid) ?? null,
         consumption: r.consumption,
         rateUsed:    r.rateUsed,
@@ -229,7 +231,7 @@ export async function GET(
 
     const allLeaseIds      = allLeases.map((l) => l._id);
     const unitNumberById   = new Map(units.map((u) => [String(u._id), u.unitNumber]));
-    const tenantByLeaseId  = new Map(allLeases.map((l) => [String(l._id), (l.tenantId as any)?.fullName ?? null]));
+    const tenantByLeaseId  = new Map(allLeases.map((l) => [String(l._id), (l.tenantId as WithFullName)?.fullName ?? null]));
     const unitIdByLeaseId  = new Map(allLeases.map((l) => [String(l._id), String(l.unitId)]));
 
     const ledgerPayments = await Payment.find({ leaseId: { $in: allLeaseIds } })

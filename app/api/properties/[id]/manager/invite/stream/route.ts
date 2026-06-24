@@ -18,6 +18,7 @@ export async function GET(
 
   const property = await Property.findOne({ slug: id });
   if (!property) return new Response("Not found", { status: 404 });
+
   if (property.ownerId.toString() !== authUser.userId) {
     return new Response("Forbidden", { status: 403 });
   }
@@ -27,13 +28,6 @@ export async function GET(
 
   const stream = new ReadableStream({
     async start(controller) {
-      let heartbeat: ReturnType<typeof setInterval>;
-
-      const cleanup = () => {
-        clearInterval(heartbeat);
-        inviteEmitter.off(channel, onAccepted);
-      };
-
       const onAccepted = (data: object) => {
         controller.enqueue(
           encoder.encode(`event: manager-assigned\ndata: ${JSON.stringify(data)}\n\n`),
@@ -42,10 +36,13 @@ export async function GET(
         controller.close();
       };
 
-      // Register listener BEFORE the DB check — no event can slip through the gap
+      const cleanup = () => {
+        clearInterval(heartbeat);
+        inviteEmitter.off(channel, onAccepted);
+      };
+
       inviteEmitter.on(channel, onAccepted);
 
-      // Close the race window: check if the invite was already resolved
       const stillPending = await ManagerInvite.exists({
         propertyId: property._id,
         status: "PENDING",
@@ -53,16 +50,15 @@ export async function GET(
       });
 
       if (!stillPending) {
-        // Accepted in the race window — fetch the current manager from the property
         const fresh = await Property.findById(property._id)
           .populate<{ propertyManager: { _id: { toString(): string }; fullName: string } | null }>("propertyManager", "_id fullName");
+
         if (fresh?.propertyManager) {
           onAccepted({
             managerId:   fresh.propertyManager._id.toString(),
             managerName: fresh.propertyManager.fullName,
           });
         } else {
-          // Expired without acceptance — tell the client to clear the banner
           controller.enqueue(encoder.encode(`event: invite-expired\ndata: {}\n\n`));
           cleanup();
           controller.close();
@@ -70,7 +66,7 @@ export async function GET(
         return;
       }
 
-      heartbeat = setInterval(() => {
+      const heartbeat = setInterval(() => {
         try {
           controller.enqueue(encoder.encode(": heartbeat\n\n"));
         } catch {
@@ -89,7 +85,7 @@ export async function GET(
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
-      Connection: "keep-alive",
+      Connection:      "keep-alive",
     },
   });
 }

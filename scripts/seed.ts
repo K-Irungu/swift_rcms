@@ -364,8 +364,7 @@ async function seed() {
 
   for (let i = 0; i < leases.length; i++) {
     const lease = leases[i];
-    const rent  = (lease as any).monthlyRent;
-
+const rent = (lease as { monthlyRent: number }).monthlyRent;
     // Helper: paid invoice + matching payment
     const paidEntry = (billingMonth: Date, paidOn: Date, method: string, late = 0) => {
       const leaseId = lease._id;

@@ -1,23 +1,26 @@
-// ─── Step 1: Basic Details ────────────────────────────────────────────────────
+import { Label } from "@/components/ui/label";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { X } from "lucide-react";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 type Step1Data = {
   managerId: string;
   propertyName: string;
   description: string;
 };
 
-// ─── Validation ───────────────────────────────────────────────────────────────
-
-function validateStep1(data: Step1Data): FieldErrors<Step1Data> {
-  const errors: FieldErrors<Step1Data> = {};
-  if (!data.managerId) errors.managerId = "Please select a property manager.";
-  if (!data.propertyName.trim())
-    errors.propertyName = "Property name is required.";
-  return errors;
-}
-
 type FieldErrors<T> = Partial<Record<keyof T, string>>;
 
+type PropertyManager = {
+  _id: string;
+  fullName: string;
+  email: string;
+};
 
+// ─── Field wrapper ────────────────────────────────────────────────────────────
 
 function Field({
   label,
@@ -41,14 +44,19 @@ function Field({
     </div>
   );
 }
+
+// ─── Step 1: Basic Details ────────────────────────────────────────────────────
+
 export function Step1({
   data,
   onChange,
   errors,
+  propertyManagers,
 }: {
   data: Step1Data;
   onChange: (d: Step1Data) => void;
   errors: FieldErrors<Step1Data>;
+  propertyManagers: PropertyManager[];
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -71,14 +79,14 @@ export function Step1({
               <SelectValue placeholder="Select a property manager" />
             </SelectTrigger>
             <SelectContent className="p-1 rounded-md">
-              {PROPERTY_MANAGERS.map((pm) => (
+              {propertyManagers.map((pm) => (
                 <SelectItem
-                  key={pm.id}
-                  value={pm.id}
+                  key={pm._id}
+                  value={pm._id}
                   className="text-xs cursor-pointer rounded-sm"
                 >
                   <div className="flex flex-col">
-                    <span className="font-medium">{pm.name}</span>
+                    <span className="font-medium">{pm.fullName}</span>
                     <span className="text-muted-foreground text-[11px]">
                       {pm.email}
                     </span>

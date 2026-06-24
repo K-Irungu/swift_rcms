@@ -213,7 +213,7 @@ export async function POST(
       paymentForMonth: paymentForMonthDate,
     });
 
-    const tenantName = (lease.tenantId as any)?.fullName ?? "—";
+const tenantName = (lease.tenantId as { fullName?: string } | null)?.fullName ?? "—";
 
     return successResponse(
       {
@@ -230,7 +230,7 @@ export async function POST(
       201,
     );
   } catch (error) {
-    if ((error as any)?.code === 11000) {
+if ((error as { code?: number })?.code === 11000) {
       return errorResponse("A payment with this transaction reference already exists", 409);
     }
     console.error(error);
