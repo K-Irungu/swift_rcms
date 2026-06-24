@@ -22,7 +22,7 @@ const schema = z.object({
 
 export const POST = asyncHandler(async (req: NextRequest) => {
 
-
+  console.log("[ForgotPassword] Request received")
   await connectDB()
   await connectRedis()
 
