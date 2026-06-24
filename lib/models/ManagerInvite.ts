@@ -23,7 +23,7 @@ const ManagerInviteSchema = new Schema<IManagerInvite>(
   { timestamps: true },
 );
 
-ManagerInviteSchema.index({ token: 1 });
+// ManagerInviteSchema.index({ token: 1 });
 ManagerInviteSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export const ManagerInvite =
