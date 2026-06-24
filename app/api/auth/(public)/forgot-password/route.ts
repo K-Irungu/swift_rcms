@@ -22,10 +22,9 @@ const schema = z.object({
 
 export const POST = asyncHandler(async (req: NextRequest) => {
 
-  console.log("[ForgotPassword] Request received")
+
   await connectDB()
   await connectRedis()
-
 
 
   // Step 1: Validate request body
@@ -34,6 +33,8 @@ export const POST = asyncHandler(async (req: NextRequest) => {
 
   // Step 2: Check the email exists in the database
   const user = await User.findOne({ email })
+
+  console.log(`[ForgotPassword] User lookup for email: ${email} - Found: ${!!user}`)
 
   if (!user) {
     // Return success anyway to prevent email enumeration attacks
