@@ -16,6 +16,7 @@ export default async function PortalLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  
   // Protect all dashboard routes — redirect to login if not authenticated
   const user = await getCurrentUser();
   if (!user) redirect("/auth/login");

@@ -14,6 +14,8 @@ export function OverviewTab({
   onPropertyUpdate,
 }: OverviewTabProps) {
 
+
+
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 

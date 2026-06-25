@@ -21,7 +21,7 @@ const validationSchema = z.object({
 
 export const POST = asyncHandler(async (req: NextRequest) => {
 
-      await connectRedis();
+  await connectRedis();
 
 
   const body = await req.json();
@@ -33,8 +33,8 @@ export const POST = asyncHandler(async (req: NextRequest) => {
 
   // Fast Redis check — stops repeat requests before DB query
   const [existsLock, otpLock] = await Promise.all([
-    redis.get(existsKey), // ← "have we seen this email before and it was registered?"
-    redis.get(otpKey), // ← "has this email already been sent an OTP recently?"
+    redis.get(existsKey), // "have we seen this email before and it was registered?"
+    redis.get(otpKey),    // "has this email already been sent an OTP recently?"
   ]);
 
   if (existsLock || otpLock) {
@@ -49,7 +49,7 @@ export const POST = asyncHandler(async (req: NextRequest) => {
   if (!existingUser) {
     await authService.handleRegistrationOtp(input);
   } else {
-    // Set Redis key atomically — rate limits repeat requests
+    // Set Redis key atomically
     await redis.set(existsKey, "1", { EX: 300, NX: true });
     await emailService.sendWarningToExistingUser(
       input.email,
