@@ -227,6 +227,8 @@ export async function POST(req: NextRequest) {
     let coverPhotoUrl = "";
 
     const file = formData.get("coverPhoto") as File | null;
+    
+    console.log("Received cover photo file:", file);
 
     if (file) {
       const bytes = await file.arrayBuffer();
